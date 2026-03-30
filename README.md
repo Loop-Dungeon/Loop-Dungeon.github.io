@@ -1,2 +1,2 @@
 # LoopDungeon
-The source code of my Loop Dungeon game.
+The source code of Loop Dungeon.
