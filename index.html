@@ -293,7 +293,7 @@ async function land(c){
   if(R.includes("A♥")){R.splice(R.indexOf("A♥"),1);U.push("A♥");c[1]="H";put(`You face a statue (${cc(c[0])})! However, Your ${cc("A♥")} relic saved you from the battle!`)}
   else{put(`You face a statue (${cc(c[0])})!`,"bad");over=true}
  }else if(isNum(c)){take(c[0]);T.shift()}
- else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift()}
+ else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift();bless()}
  else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
  else if(c[1]!=="H"&&c[0]==="Campfire")await campfire();
  else put("You land on a face-down card. Nothing happens.");
@@ -319,9 +319,13 @@ async function explore(){
  if(!over||esc)show();
 }
 function collect(){
+ const c=T[0];
+ if(c[1]==="H")return put("You can't collect a card that hasn't been revealed yet.");
+ if(c[0][0]==="A"){T.shift();R.push(c[0]);put(`You found a relic (${cc(c[0])})!`);bless();show();return}
+ if(trap(c))return put(`You can't collect a statue (${cc(c[0])}). Use the ${cc("A♣")} relic to blow it away.`);
+ if(!isNum(c))return put(`You can't collect the ${cc(c[0])} card. Explore to land on it instead.`);
  if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
- if(!isNum(T[0]))return put("You can't collect a card that hasn't been revealed yet.");
- const c=T.shift()[0];B.push(c);put(`You collected the card ${cc(c)} and add it to your backpack.`);show()}
+ T.shift();B.push(c[0]);put(`You collected the card ${cc(c[0])} and add it to your backpack.`);show()}
 async function pack(){
  if(!B.length)return put("You have no cards in your backpack to use.");
  put(`You have the following cards in your backpack: ${ccs(B)}`);
@@ -349,7 +353,7 @@ async function relic(){
    if(isNum(c)){T.splice(i-1,1);put(`You collected the card ${cc(c[0])} and add it to your inventory.`);inv.push(c[0]);bless()}
    else if(c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
    else if(c[0]==="Campfire")await campfire();
-   else if(c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.splice(i-1,1)}}
+   else if(c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.splice(i-1,1);bless()}}
   printMap();
  }else if(r==="A♦"){
   if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
