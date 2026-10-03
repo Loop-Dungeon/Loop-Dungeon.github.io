@@ -54,8 +54,8 @@ body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"Deja
 #hist .m{border-left:2px solid rgba(201,169,110,.28);padding-left:6px}
 #hist{max-height:30vh;overflow-y:auto;overflow-x:hidden;padding:8px 10px;font-size:12px;line-height:1.4;color:#a8a8a8}
 #hist .m{margin:0 0 4px}
-#hist{scrollbar-width:none;-ms-overflow-style:none}
-#hist::-webkit-scrollbar{display:none;width:0;height:0}
+#hist,#side{scrollbar-width:none;-ms-overflow-style:none}
+#hist::-webkit-scrollbar,#side::-webkit-scrollbar{display:none;width:0;height:0}
 .sh{color:#f9f1a5;margin:10px 0 2px;border-bottom:1px dashed rgba(201,169,110,.35)}
 .sh:first-child{margin-top:2px}
 .r{display:flex;justify-content:space-between;gap:10px;white-space:pre}
@@ -115,7 +115,7 @@ pre.map::-webkit-scrollbar-thumb{background:#3f8f3a;border-radius:5px}
 <body>
 <button id="spd" type="button" class="quiet" title="Change how fast text appears">» Text speed: Normal</button>
 <div id="term">
- <details id="side" class="vine"><summary id="sum">Stats</summary><div id="stats"></div><div id="logwrap"><button id="hbtn" type="button" aria-expanded="true" aria-controls="hist"><svg class="quill" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21 2C13 2.5 7 7 5.5 14.5L4 19l-2 3 3.2-1.8 4.5-1.5C16 17 20.5 11 21 2z" fill="#e8dcb8" stroke="#7a5a2b" stroke-width="1"/><path d="M20 3C14 7 9 12 5 20" fill="none" stroke="#7a5a2b" stroke-width="1"/><path d="M13 7l4 1M10.5 10l4.5 1M8.5 13.5l4 .8" stroke="#b79a62" stroke-width=".8" fill="none"/><circle cx="2.6" cy="21.4" r="1" fill="#2a1f14"/></svg><span id="htitle">Adventure log</span><span id="hchev" aria-hidden="true">▾</span></button><div id="hist"></div></div></details>
+ <details id="side"><summary id="sum">Stats</summary><div id="stats"></div><div id="logwrap"><button id="hbtn" type="button" aria-expanded="true" aria-controls="hist"><svg class="quill" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21 2C13 2.5 7 7 5.5 14.5L4 19l-2 3 3.2-1.8 4.5-1.5C16 17 20.5 11 21 2z" fill="#e8dcb8" stroke="#7a5a2b" stroke-width="1"/><path d="M20 3C14 7 9 12 5 20" fill="none" stroke="#7a5a2b" stroke-width="1"/><path d="M13 7l4 1M10.5 10l4.5 1M8.5 13.5l4 .8" stroke="#b79a62" stroke-width=".8" fill="none"/><circle cx="2.6" cy="21.4" r="1" fill="#2a1f14"/></svg><span id="htitle">Adventure log</span><span id="hchev" aria-hidden="true">▾</span></button><div id="hist"></div></div></details>
  <div id="main">
  <div id="log" class="vine" aria-live="polite"></div>
  <div id="bar">
