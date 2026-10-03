@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loop Dungeon</title>
-<meta property="og:description" content="A text-based dungeon crawler card game: jump through a looping deck, dodge the statues, and find the exit.">
 <link rel="icon" type="image/x-icon" href="loopdungeon.ico">
 <link rel="shortcut icon" href="loopdungeon.ico">
 <style>
@@ -12,7 +11,7 @@
 html,body{margin:0;height:100%;background:#0c0c0c}
 body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace}
 :root{--sbw:0px}
-#term{max-width:1400px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:12px 16px;gap:10px}
+#term{max-width:1400px;margin:0 auto;height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;padding:12px 16px 38px;gap:10px}
 #main{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}
 #side{order:-1;flex:none;border:0}
 #side summary{cursor:pointer;padding:6px 10px;color:#c9a96e;border:1px solid #5a4528;background:#1d160d}
@@ -27,6 +26,20 @@ body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"Deja
   repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 2px,rgba(0,0,0,.03) 2px 4px),
   #2b2014;
  box-shadow:0 0 0 1px #0c0c0c,0 6px 18px rgba(0,0,0,.6)}
+#logwrap{margin-top:12px;border:1px solid #333;background:#101010}
+#logwrap{border-color:#5a4528;background:#120e09}
+#hbtn{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:0;border-bottom:1px dashed rgba(201,169,110,.35);padding:5px 10px;text-align:left;font-size:13px;color:#c9a96e;background:linear-gradient(#2b2014,#1a130b)}
+#hbtn:hover{background:linear-gradient(#35281a,#221810);border-color:rgba(201,169,110,.35)}
+#htitle{flex:1;font-style:italic;letter-spacing:.04em}
+#hchev{color:#8a7b5c}
+.quill{flex:none;transform:rotate(-8deg);filter:drop-shadow(0 1px 1px #000)}
+#logwrap.closed #hbtn{border-bottom-color:transparent}
+#logwrap.closed #hist{display:none}
+#hist .m{border-left:2px solid rgba(201,169,110,.28);padding-left:6px}
+#hist{max-height:30vh;overflow-y:auto;overflow-x:hidden;padding:8px 10px;font-size:12px;line-height:1.4;color:#a8a8a8}
+#hist .m{margin:0 0 4px}
+#hist{scrollbar-width:none;-ms-overflow-style:none}
+#hist::-webkit-scrollbar{display:none;width:0;height:0}
 .sh{color:#f9f1a5;margin:10px 0 2px;border-bottom:1px dashed rgba(201,169,110,.35)}
 .sh:first-child{margin-top:2px}
 .r{display:flex;justify-content:space-between;gap:10px;white-space:pre}
@@ -39,7 +52,8 @@ body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"Deja
  #side summary{display:none}
  #stats{max-height:none;overflow:visible;font-size:14px}
 }
-#log{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px}
+#log{flex:1;overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable;padding-bottom:8px}
+.pend{visibility:hidden}
 .m{margin:0 0 6px;white-space:pre-wrap;word-break:break-word}
 pre.title{margin:0 0 12px;line-height:1.05;font-size:min(13px,calc((100vw - 48px - var(--sbw))/74));overflow:hidden;color:#e6e6e6}
 pre.map{margin:0 0 8px;overflow-x:auto;font-size:13px;line-height:1.5}
@@ -60,8 +74,8 @@ button{font:inherit;color:#ddd;background:none;border:1px solid #3a3a3a;padding:
 button:hover{background:#1c1c1c;border-color:#666}
 button:focus-visible{outline:2px solid #f9f1a5;outline-offset:2px}
 button.quiet{color:#767676}
-#tools{margin-top:8px;display:flex;justify-content:flex-start}
-#spd{font-size:13px;padding:2px 8px;color:#9a9a9a}
+#spd{position:fixed;left:12px;bottom:8px;z-index:5;font-size:12px;padding:2px 8px;color:#767676;border-color:#2a2a2a;background:#0c0c0c}
+#spd:hover{color:#ddd}
 .k{color:#767676;margin-right:1ch}
 @media(pointer:coarse){#in{font-size:16px}}
 
@@ -81,14 +95,14 @@ pre.map::-webkit-scrollbar-thumb{background:#3f8f3a;border-radius:5px}
 </style>
 </head>
 <body>
+<button id="spd" type="button" class="quiet" title="Change how fast text appears">» Text speed: Normal</button>
 <div id="term">
- <details id="side" class="vine"><summary id="sum">Stats</summary><div id="stats"></div></details>
+ <details id="side" class="vine"><summary id="sum">Stats</summary><div id="stats"></div><div id="logwrap"><button id="hbtn" type="button" aria-expanded="true" aria-controls="hist"><svg class="quill" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21 2C13 2.5 7 7 5.5 14.5L4 19l-2 3 3.2-1.8 4.5-1.5C16 17 20.5 11 21 2z" fill="#e8dcb8" stroke="#7a5a2b" stroke-width="1"/><path d="M20 3C14 7 9 12 5 20" fill="none" stroke="#7a5a2b" stroke-width="1"/><path d="M13 7l4 1M10.5 10l4.5 1M8.5 13.5l4 .8" stroke="#b79a62" stroke-width=".8" fill="none"/><circle cx="2.6" cy="21.4" r="1" fill="#2a1f14"/></svg><span id="htitle">Adventure log</span><span id="hchev" aria-hidden="true">▾</span></button><div id="hist"></div></div></details>
  <div id="main">
  <div id="log" class="vine" aria-live="polite"></div>
  <div id="bar">
   <form id="f" autocomplete="off"><div id="pl" hidden><span id="pq"></span><input id="in" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command"></div></form>
   <div id="btns"></div>
-  <div id="tools"><button id="spd" type="button" class="quiet" title="Change how fast text appears">» Text speed: Normal</button></div>
  </div>
  </div>
 </div>
@@ -116,33 +130,44 @@ const WORD_MS=45,LINE_GAP_MS=140;
 async function typeNode(n){
  const tw=document.createTreeWalker(n,NodeFilter.SHOW_TEXT),ts=[];
  while(tw.nextNode())ts.push(tw.currentNode);
- const full=ts.map(t=>t.data);ts.forEach(t=>t.data="");
- log.appendChild(n);
+ /* buffer: the unrevealed text stays in the layout (hidden), so the line never grows or re-wraps */
+ const full=ts.map(t=>t.data),pend=ts.map(t=>{const sp=document.createElement("span");sp.className="pend";sp.textContent=t.data;t.data="";t.after(sp);return sp});
+ log.appendChild(n);log.scrollTop=1e9;
  for(let i=0;i<ts.length;i++){
   let acc="";
   for(const w of full[i].match(/\s*\S+\s*|\s+/g)||[]){
-   if(SPEEDS[si].m===0){ts[i].data=full[i];break}
-   acc+=w;ts[i].data=acc;log.scrollTop=1e9;await wait(WORD_MS*SPEEDS[si].m)}
-  ts[i].data=full[i]}
+   if(SPEEDS[si].m===0)break;
+   acc+=w;ts[i].data=acc;pend[i].textContent=full[i].slice(acc.length);
+   await wait(WORD_MS*SPEEDS[si].m)}
+  ts[i].data=full[i];pend[i].remove()}
  log.scrollTop=1e9}
 /* the map waits a beat after the text, then draws row by row */
 const MAP_PAUSE_MS=500,ROW_MS=70;
 async function revealMap(n){
- const rows=n.innerHTML.split("\n");
- if(SPEEDS[si].m>0)await wait(MAP_PAUSE_MS*SPEEDS[si].m);
- n.innerHTML="";log.appendChild(n);
- for(let i=0;i<rows.length;i++){
-  n.innerHTML=rows.slice(0,i+1).join("\n");log.scrollTop=1e9;
-  if(SPEEDS[si].m===0){n.innerHTML=rows.join("\n");break}
-  await wait(ROW_MS*SPEEDS[si].m)}
- log.scrollTop=1e9}
+ const rows=n.innerHTML.split("\n"),m=()=>SPEEDS[si].m;
+ /* reserve the full map height up front (hidden), then fill rows in */
+ n.classList.add("pend");log.appendChild(n);log.scrollTop=1e9;
+ if(m()>0)await wait(MAP_PAUSE_MS*m());
+ n.classList.remove("pend");
+ for(let i=0;i<rows.length&&m()>0;i++){
+  const rest=rows.slice(i+1).join("\n");
+  n.innerHTML=rows.slice(0,i+1).join("\n")+(rest?`\n<span class="pend">${rest}</span>`:"");
+  await wait(ROW_MS*m())}
+ n.innerHTML=rows.join("\n");log.scrollTop=1e9}
 async function pump(){busy=true;
  while(Q.length){const n=Q.shift();
-  if(n.classList.contains("m"))await typeNode(n);
+  if(n.classList.contains("m")){await typeNode(n);addHist(n)}
   else if(n.classList.contains("map"))await revealMap(n);
   else{log.appendChild(n);log.scrollTop=1e9}
   const d=LINE_GAP_MS*SPEEDS[si].m;if(d>0&&Q.length)await wait(d)}
  busy=false;idle.splice(0).forEach(r=>r())}
+const hist=$("hist");
+{const w=$("logwrap"),b=$("hbtn");
+ const set=o=>{w.classList.toggle("closed",!o);b.setAttribute("aria-expanded",o);$("hchev").textContent=o?"▾":"▸";if(o)hist.scrollTop=1e9;try{localStorage.setItem("ld_log",o?"1":"0")}catch(e){}};
+ b.onclick=()=>set(w.classList.contains("closed"));
+ let o=true;try{o=localStorage.getItem("ld_log")!=="0"}catch(e){}
+ set(o)}
+function addHist(n){hist.appendChild(n.cloneNode(true));while(hist.children.length>400)hist.firstChild.remove();hist.scrollTop=1e9}
 const enq=n=>{Q.push(n);if(!busy)pump()};
 const drained=()=>busy||Q.length?new Promise(r=>idle.push(r)):Promise.resolve();
 function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;enq(d)}
@@ -488,7 +513,7 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
 
 /* ---------- main loop ---------- */
 async function game(){
- newState();statsFn=mainStats;Q.length=0;log.innerHTML="";title();
+ newState();statsFn=mainStats;Q.length=0;log.innerHTML="";hist.innerHTML="";title();
  while(!over){
   const canLook=T[0][1]==="H";
   const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
