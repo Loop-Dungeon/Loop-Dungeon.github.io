@@ -250,17 +250,17 @@ const relLabel=r=>`${cc(r)} <span title="${RN[r.slice(-1)][1]}">${RN[r.slice(-1)
 const row=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
 const sh=t=>`<div class="sh">${t}</div>`;
 const meter=(n,t=10)=>{n=Math.max(0,Math.min(t,n));return "█".repeat(n)+"░".repeat(t-n)};
-const barRow=(label,cls,n,val)=>`<div class="r"><span>${label}</span><span class="${cls}">${meter(n)}</span><span>${val}</span></div>`;
+const barRow=(label,cls,n,val,t=10)=>`<div class="r"><span>${label}</span><span class="${cls}">${meter(n,t)}</span><span>${val}</span></div>`;
 const dimTxt=t=>`<span class="dim">${t}</span>`;
 function draw(sum,html){$("sum").textContent=sum;$("stats").innerHTML=html}
 function mainStats(){
  if(!T)return;
  const hid=T.filter(c=>c[1]==="H"),hf=hid.filter(c=>isFace(c[0])).length,n=R.length+U.length;
- const cnt=s=>inv.filter(x=>x.endsWith(s)).length+(R.includes("A"+s)||U.includes("A"+s)?1:0);
+ const cnt=s=>inv.filter(x=>x.endsWith(s)).length;
  let h=sh("Haul")+row("Cards",inv.length)+row("Relics",`${n}/4`)+row("Blessed suits",M.length?M.map(cc).join(" "):dimTxt("none"))
   +row("Inventory",inv.length?"":dimTxt("empty"))
   +(inv.length?`<div class="chips">${[...inv].sort((x,y)=>SU.indexOf(x.slice(-1))-SU.indexOf(y.slice(-1))||RK.map(String).indexOf(x.slice(0,-1))-RK.map(String).indexOf(y.slice(0,-1))).map(cc).join(" ")}</div>`:"");
- h+=sh("Suits")+SU.map(s=>barRow(cc(s),CL[s],cnt(s),`${cnt(s)}/10${M.includes(s)?" ★":""}`)).join("");
+ h+=sh("Suits")+SU.map(s=>barRow(cc(s),CL[s],cnt(s),`${cnt(s)}/9${M.includes(s)?" ★":""}`,9)).join("");
  h+=sh("Relics")+SU.map(s=>{const r="A"+s;return row(relLabel(r),R.includes(r)?"ready":dimTxt(U.includes(r)?"used":"not found"))}).join("");
  h+=sh("Backpack")+row("Holding",`${B.length}/3`)+(B.length?`<div class="chips">${B.map(cc).join(" ")}</div>`:"");
  h+=sh("Dungeon")+row("Cards left",T.length)+row("Face-down",hid.length)+row("Face-down statues",hf)+row("Next is a statue",hid.length?(hf/hid.length*100).toFixed(1)+"%":"0%");
@@ -275,9 +275,9 @@ function newState(){
  T=D.map(c=>[c,"H"]);inv=[];B=[];R=[];U=[];M=[];over=esc=false;
 }
 function bless(){for(const s of SU){if(M.includes(s))continue;
- if(inv.filter(x=>x.endsWith(s)).length===9&&(R.includes("A"+s)||U.includes("A"+s))){M.push(s);
+ if(inv.filter(x=>x.endsWith(s)).length===9){M.push(s);
   put(`\n SUIT BLESSING: ${cc(s)} `,"gold");
-  put(`You have collected every card of the ${cc(s)} suit. You have been honored by the Royal house of ${cc(s).replace(s,NM[s])}`);
+  put(`You have collected every card of the ${cc(s)} suit (all except its relic). You have been honored by the Royal house of ${cc(s).replace(s,NM[s])}`);
   let n=0;T.forEach(c=>{if(c[0].endsWith(s)&&trap(c)){c[1]="H";n++}});
   if(n)put(`All ${cc(s)} statues in the dungeon won't attack you...for now`)}}}
 function take(c){inv.push(c);put(`Collected: ${cc(c)}!`);bless()}
@@ -295,17 +295,16 @@ async function land(c){
   if(R.includes("A♥")){R.splice(R.indexOf("A♥"),1);U.push("A♥");c[1]="H";put(`You face a statue (${cc(c[0])})! However, Your ${cc("A♥")} relic saved you from the battle!`)}
   else{put(`You face a statue (${cc(c[0])})!`,"bad");over=true}
  }else if(isNum(c)){take(c[0]);T.shift()}
- else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift();bless()}
+ else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift()}
  else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
  else if(c[1]!=="H"&&c[0]==="Campfire")await campfire();
  else put("You land on a face-down card. Nothing happens.");
 }
 
-/* ---------- dead end: no action can change anything ---------- */
+/* ---------- dead end check (only used for a hint, never ends the run) ---------- */
 function stuck(){
  if(T[0][1]==="H")return false;                       /* can Look */
  if(isNum(T[0])||isNum(T[1]))return false;            /* can Explore */
- if(T[0][0][0]==="A")return false;                    /* can Collect a relic */
  if(B.length)return false;                            /* can put a backpack card on top */
  for(const r of R){
   if(r==="A♥"&&U.length)return false;                 /* totem can recover a relic */
@@ -322,6 +321,11 @@ function look(){
 async function explore(){
  const av=[0,1].filter(i=>isNum(T[i]));
  if(!av.length){put("No moves available. You can't explore because neither of the first two cards are numbers.");
+  const t=T[0];
+  if(t[1]==="H")put("Tip: the top card is still face-down. Use Look to reveal it.","dim");
+  else if(trap(t)&&R.includes("A♣"))put(`Tip: you can blow the statue away with your ${cc("A♣")} relic.`,"dim");
+  else if(B.length)put("Tip: you can put a card from your backpack back on top of the dungeon.","dim");
+  if(stuck())put("You look stuck: nothing you have can move you forward. You can choose Give up (exit) and start a new run.","dim");
   return}
  const mp=printMap();
  const mark=(idx,on)=>{const c=mp.querySelectorAll("span")[idx%T.length];if(c)c.classList.toggle("land",on)};
@@ -336,7 +340,7 @@ async function explore(){
 function collect(){
  const c=T[0];
  if(c[1]==="H")return put("You can't collect a card that hasn't been revealed yet.");
- if(c[0][0]==="A"){T.shift();R.push(c[0]);put(`You found a relic (${cc(c[0])})!`);bless();show();return}
+ if(c[0][0]==="A")return put(`You can't collect a relic (${cc(c[0])}). You can only get it by landing on it with Explore.`);
  if(trap(c))return put(`You can't collect a statue (${cc(c[0])}). Use the ${cc("A♣")} relic to blow it away.`);
  if(!isNum(c))return put(`You can't collect the ${cc(c[0])} card. Explore to land on it instead.`);
  if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
@@ -368,7 +372,7 @@ async function relic(){
    if(isNum(c)){T.splice(i-1,1);put(`You collected the card ${cc(c[0])} and add it to your inventory.`);inv.push(c[0]);bless()}
    else if(c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
    else if(c[0]==="Campfire")await campfire();
-   else if(c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.splice(i-1,1);bless()}}
+   else if(c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.splice(i-1,1)}}
   printMap();
  }else if(r==="A♦"){
   if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
@@ -406,7 +410,7 @@ ${cc("A♣")}: A fan. Blows an enemy away from the dungeon.
 === Event cards ===
 Exit: Exit card. If you hit this card and it's revealed, you escape from the dungeon!
 Campfire: Campfire card. If you hit this card and it's revealed, you can choose to recover 2 relics if you have any used relics.
-During the process of the game, if you collect all 10 cards of a suit and have the relic of that suit, you will be blessed by that suit.
+During the process of the game, if you collect every card of a suit except its relic (all 9 number cards), you will be blessed by that suit. You don't need to own the relic.
 Blessing of a suit means all face-up face cards of that suit in the dungeon will be face-down.
 
 === Scoring ===
@@ -558,9 +562,6 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
 async function game(){
  newState();statsFn=mainStats;Q.length=0;log.innerHTML="";hist.innerHTML="";title();
  while(!over){
-  if(stuck()){
-   put("You have nothing left to move forward: no number card to jump with, no way to look ahead, and no backpack card or relic that can help.","bad");
-   put("The way is blocked, and the shadows close in around you...","bad");over=true;break}
   const canLook=T[0][1]==="H";
   const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
   const verbs=[...(canLook?["Look"]:[]),"Explore","Collect","Backpack","Relic"];
