@@ -301,7 +301,7 @@ async function land(c){
  else put("You land on a face-down card. Nothing happens.");
 }
 
-/* ---------- dead end check (only used for a hint, never ends the run) ---------- */
+/* ---------- dead end: no action can change anything (ends the run automatically) ---------- */
 function stuck(){
  if(T[0][1]==="H")return false;                       /* can Look */
  if(isNum(T[0])||isNum(T[1]))return false;            /* can Explore */
@@ -325,7 +325,6 @@ async function explore(){
   if(t[1]==="H")put("Tip: the top card is still face-down. Use Look to reveal it.","dim");
   else if(trap(t)&&R.includes("A♣"))put(`Tip: you can blow the statue away with your ${cc("A♣")} relic.`,"dim");
   else if(B.length)put("Tip: you can put a card from your backpack back on top of the dungeon.","dim");
-  if(stuck())put("You look stuck: nothing you have can move you forward. You can choose Give up (exit) and start a new run.","dim");
   return}
  const mp=printMap();
  const mark=(idx,on)=>{const c=mp.querySelectorAll("span")[idx%T.length];if(c)c.classList.toggle("land",on)};
@@ -562,6 +561,9 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
 async function game(){
  newState();statsFn=mainStats;Q.length=0;log.innerHTML="";hist.innerHTML="";title();
  while(!over){
+  if(stuck()){
+   put("You have nothing left to move forward: no number card to jump with, no way to look ahead, and no backpack card or relic that can help.","bad");
+   put("The way is blocked, and the shadows close in around you...","bad");over=true;break}
   const canLook=T[0][1]==="H";
   const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
   const verbs=[...(canLook?["Look"]:[]),"Explore","Collect","Backpack","Relic"];
