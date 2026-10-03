@@ -8,10 +8,27 @@
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;background:#0c0c0c}
 body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace}
-#term{max-width:1040px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:12px 16px}
+:root{--sbw:0px}
+#term{max-width:1400px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:12px 16px;gap:10px}
+#main{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}
+#side{order:-1;flex:none;border:1px solid #333}
+#side summary{cursor:pointer;padding:6px 10px;color:#9a9a9a}
+#stats{padding:0 10px 8px;max-height:38vh;overflow:auto;font-size:13px}
+.sh{color:#f9f1a5;margin:10px 0 2px}
+.sh:first-child{margin-top:2px}
+.r{display:flex;justify-content:space-between;gap:10px;white-space:pre}
+.r>span:first-child{color:#9a9a9a}
+.chips{word-spacing:.6ch}
+@media(min-width:1100px){
+ :root{--sbw:340px}
+ #term{flex-direction:row;gap:16px}
+ #side{order:0;width:300px;border:0;border-left:1px solid #333;padding-left:16px;overflow:auto}
+ #side summary{display:none}
+ #stats{max-height:none;padding:0;font-size:14px}
+}
 #log{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px}
 .m{margin:0 0 6px;white-space:pre-wrap;word-break:break-word}
-pre.title{margin:0 0 12px;line-height:1.05;font-size:min(13px,calc((100vw - 48px)/74));overflow:hidden;color:#e6e6e6}
+pre.title{margin:0 0 12px;line-height:1.05;font-size:min(13px,calc((100vw - 48px - var(--sbw))/74));overflow:hidden;color:#e6e6e6}
 pre.map{margin:0 0 8px;overflow-x:auto;font-size:13px;line-height:1.5}
 .red{color:#e74856}
 .dim{color:#767676}
@@ -34,10 +51,13 @@ button.quiet{color:#767676}
 </head>
 <body>
 <div id="term">
+ <details id="side"><summary id="sum">Stats</summary><div id="stats"></div></details>
+ <div id="main">
  <div id="log" aria-live="polite"></div>
  <div id="bar">
   <form id="f" autocomplete="off"><div id="pl" hidden><span id="pq"></span><input id="in" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command"></div></form>
   <div id="btns"></div>
+ </div>
  </div>
 </div>
 <script>
@@ -50,7 +70,7 @@ const ccs=a=>"["+a.map(cc).join(", ")+"]";
 const isFace=n=>/^[JQK]/.test(n),isNum=c=>!!c&&c[1]!=="H"&&/^\d+$/.test(c[0].slice(0,-1)),num=c=>parseInt(c[0]);
 const trap=c=>!!c&&c[1]!=="H"&&isFace(c[0]);
 const log=$("log");
-let T,inv,B,R,U,M,over,esc,score=0,cur=null;
+let T,inv,B,R,U,M,over,esc,score=0,cur=null,statsFn=()=>{};
 
 /* ---------- terminal output ---------- */
 function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;log.appendChild(d);log.scrollTop=1e9}
@@ -71,7 +91,7 @@ function title(){const p=document.createElement("pre");p.className="title";p.set
  p.innerHTML=TITLE.map(l=>`${l[0]}<span class="red">${l[1]}</span>${l[2]}`).join("\n");log.appendChild(p)}
 const ctr=(t,W)=>{const p=W-t.length;if(p<=0)return t;const l=p>>1;return " ".repeat(l)+t+" ".repeat(p-l)};
 function printMap(){
- const nw=innerWidth<700,W=nw?4:8,sep=nw?"|":" | ",pre=nw?"|":"| ",post=nw?"|":" |";
+ const nw=log.clientWidth<900,W=nw?4:8,sep=nw?"|":" | ",pre=nw?"|":"| ",post=nw?"|":" |";
  const cells=T.map(c=>{let t,k;
   if(c[1]==="H"){t="H";k="dim"}
   else if(c[0]==="Exit"||c[0]==="Campfire"){t=nw?(c[0]==="Exit"?"Exit":"Fire"):c[0];k="ev"}
@@ -86,6 +106,7 @@ function show(){
 
 /* ---------- terminal input ---------- */
 function ask(q,opts){
+ statsFn();
  let n=0;
  const os=opts.map(o=>({key:o[0],label:o[1],cls:o[2],code:o[3]!==undefined?String(o[3]):(o[0]==="x"?"0":String(++n))}));
  const pt=`${q} (${os.map(o=>o.code).join("/")}):`;
@@ -102,6 +123,26 @@ function ask(q,opts){
 }
 $("f").onsubmit=e=>{e.preventDefault();const v=$("in").value.trim().toLowerCase();$("in").value="";if(v&&cur)cur(v)};
 document.addEventListener("keydown",e=>{if(cur&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1&&document.activeElement!==$("in")&&document.activeElement.tagName!=="BUTTON")$("in").focus()});
+
+/* ---------- sidebar ---------- */
+const row=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
+const sh=t=>`<div class="sh">${t}</div>`;
+const meter=(n,t=10)=>{n=Math.max(0,Math.min(t,n));return "█".repeat(n)+"░".repeat(t-n)};
+const barRow=(label,cls,n,val)=>`<div class="r"><span>${label}</span><span class="${cls}">${meter(n)}</span><span>${val}</span></div>`;
+const dimTxt=t=>`<span class="dim">${t}</span>`;
+function draw(sum,html){$("sum").textContent=sum;$("stats").innerHTML=html}
+function mainStats(){
+ if(!T)return;
+ const hid=T.filter(c=>c[1]==="H"),hf=hid.filter(c=>isFace(c[0])).length,n=R.length+U.length;
+ const cnt=s=>inv.filter(x=>x.endsWith(s)).length+(R.includes("A"+s)||U.includes("A"+s)?1:0);
+ let h=sh("Haul")+row("Cards",inv.length)+row("Relics",`${n}/4`)+row("Blessed suits",M.length?M.map(cc).join(" "):dimTxt("none"));
+ h+=sh("Suits")+SU.map(s=>barRow(cc(s),CL[s],cnt(s),`${cnt(s)}/10${M.includes(s)?" ★":""}`)).join("");
+ h+=sh("Relics")+SU.map(s=>{const r="A"+s;return row(cc(r),R.includes(r)?"ready":dimTxt(U.includes(r)?"used":"not found"))}).join("");
+ h+=sh("Backpack")+row("Holding",`${B.length}/3`)+(B.length?`<div class="chips">${B.map(cc).join(" ")}</div>`:"");
+ h+=sh("Dungeon")+row("Cards left",T.length)+row("Face-down",hid.length)+row("Face-down statues",hf)+row("Next is a statue",hid.length?(hf/hid.length*100).toFixed(1)+"%":"0%");
+ draw(`Stats · ${inv.length} cards · ${n}/4 relics`,h)}
+$("side").open=false;
+{const mq=matchMedia("(min-width:1100px)"),f=()=>{if(mq.matches)$("side").open=true};mq.addEventListener("change",f);f()}
 
 /* ---------- game state ---------- */
 function newState(){
@@ -258,7 +299,7 @@ async function king(){
   put("You want to challenge the King and make him pay for what he has done to you!");
   put("However, you don't have any cards in your inventory or backpack. The King wonders how you could escape from the dungeon with the relics.");
   put("You fight him with your bare hands, but you were quickly defeated...","bad");return}
- const w=await fight();
+ const w=await fight();statsFn=mainStats;statsFn();
  if(w===2)put("You defeated the KING. No numbers can describe your victory. Your final score is 999.","gold");
  else put("Is it the karma of your crimes? Or is it just the fate of a dungeon crawler? Who knows... Your final score is none.","bad");
 }
@@ -273,9 +314,18 @@ async function fight(){
  let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,cd=0,sp=0,allow=1,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
  for(const r of B){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
  hp+=bh;
+ const hpMax=50+bh;
+ statsFn=()=>{
+  const L=Math.max(hp,0),K=Math.max(kh,0),Mi=Math.max(mh,0);
+  let h=sh("The fight")+row("Turn",tc)+barRow("You","he",Math.ceil(L/hpMax*10),L)+barRow("King","gold",Math.ceil(K/30*10),K)+barRow("Mirror","di",Math.ceil(Mi/50*10),Mi);
+  h+=sh("Blessings")+row("Bonus health",`+${bh}`)+row("Greed",greed+"%")+row("Speed",spd+"%")+row("Strength",str+"%");
+  h+=sh("Status")+row("Special attack",sp?"charged":dimTxt("no"))+row("King",kb>0?"blown away":kh<=0?dimTxt("defeated"):"fighting")+row("Mirror",mb>0?"blown away":mh<=0?dimTxt("defeated"):"fighting")+row("Totem revive",heart?"ready":dimTxt("used"));
+  h+=sh("Relics")+(rel.length?rel.map(r=>row(cc(r),r==="A♣"&&cd>0?`cooldown ${cd}`:"ready")).join(""):dimTxt("none"));
+  h+=sh("Deck")+row("Cards",bare?"bare hands":deck.length)+(deck.length?`<div class="chips">${deck.map(cc).join(" ")}</div>`:"");
+  draw(`Fight · You ${L} · King ${K} · Mirror ${Mi}`,h)};
  if(B.length){const t=[[bh,"health"],[greed-10,"greed"],[spd-10,"speed"],[str-10,"strength"]].filter(x=>x[0]>0).map(x=>`+${x[0]} ${x[1]}`);
   put(`Since you have ${ccs(B)} in your back pack, you received its blessing: ${t.join(", ")}`)}
- const H=()=>put(`Your health is now ${Math.max(hp,0)}`);
+ const H=()=>{put(`Your health is now ${Math.max(hp,0)}`);statsFn()};
  const dead=()=>{if(hp>0)return false;
   if(heart){put("Your heart relic saves you from death! You are revived with 20 HP, but the relic is now used up.","gold");hp=20;heart=0;const i=rel.indexOf("A♥");if(i>=0)rel.splice(i,1);return false}
   return true};
@@ -360,6 +410,7 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
     }
    }
   }
+  statsFn();
   if(lost)return 1;
   kb=Math.max(0,kb-1);mb=Math.max(0,mb-1);
   if(kh<=0&&mh>0&&!kd){put("Against all odds, you defeated the KING but you still have another enemy to defeat.");kd=true}
@@ -373,7 +424,7 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
 
 /* ---------- main loop ---------- */
 async function game(){
- newState();log.innerHTML="";title();
+ newState();statsFn=mainStats;log.innerHTML="";title();
  while(!over){
   const canLook=T[0][1]==="H";
   const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["ch","Check",,"ch"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
