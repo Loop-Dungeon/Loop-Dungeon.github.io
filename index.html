@@ -225,7 +225,7 @@ setInterval(()=>{if(OPT.tm)$("tm").textContent="⏱ "+fmt((tE||performance.now()
 let allRel=false;
 function got(){if(!allRel&&R.length+U.length===4){allRel=true;sfx("achieve")}else sfx("lucky")}
 let AC=null;
-const SFX={select:[[660,.05]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.15],[200,.1]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
+const SFX={select:[[660,.05]],rage:[[0,.12],[70,.12,"sawtooth"],[95,.12,"sawtooth"],[130,.12,"sawtooth"],[180,.12,"sawtooth"],[260,.3,"sawtooth"],[0,.18],[55,.45,"sawtooth"]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.15],[200,.1]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
 function sfx(n){if(!OPT.snd)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();let t=AC.currentTime;
  for(const[f,d,w]of SFX[n]){const g=AC.createGain();g.gain.setValueAtTime(OPT.vol*.25,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
   if(f){o=AC.createOscillator();o.type=w||"square";o.frequency.value=f}else{const b=AC.createBuffer(1,AC.sampleRate*d|0,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;o=AC.createBufferSource();o.buffer=b}
@@ -486,18 +486,19 @@ async function fight(){
  put("His sceptre summoned a mirror image of you to fight against you. The mirror image has the same inventory, backpack as yours.");
  put("His sword isn't a normal one, your feelings say, and he even joined the fight?!?");
  put("This isn't a fair fight, but you have come this far. You have to fight for your life and the freedom you just got a taste of.");
- put("KING and MIRROR");
+ put("👑 KING and 🔮 MIRROR");
  let kh=30,mh=50,hp=50,deck=[...inv,...B],rel=[...R,...U],mirrorDeck=[...deck];
- let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,sp=0,ph2=false,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
+ let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,sp=0,ph2=false,gs=[],mb2=0,kc=0,kcd=2,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
  for(const r of B){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
  hp+=bh;
  const hpMax=50+bh;
- const KPH=20,KPD=20;                                    /* King phase 2: below KPH hp he rolls a d(KPD) */
+ const EM={KING:"👑",MIRROR:"🔮",GUARD:"🛡️"};
+ const KPH=20,KPD=20,GP=.1;                              /* GP: chance per turn that the King calls a guard */                                    /* King phase 2: below KPH hp he rolls a d(KPD) */
  const CDN={"A♥":3,"A♠":1,"A♦":1,"A♣":2};                /* relic cooldowns, in turns */
  const cd={"A♥":0,"A♠":0,"A♦":0,"A♣":0};
  statsFn=()=>{
   const L=Math.max(hp,0),K=Math.max(kh,0),Mi=Math.max(mh,0);
-  let h=sh("The fight")+row("Turn",tc)+barRow("You","he",Math.ceil(L/hpMax*10),L)+barRow("King","gold",Math.ceil(K/30*10),K)+barRow("Mirror","di",Math.ceil(Mi/50*10),Mi);
+  let h=sh("The fight")+row("Turn",tc)+barRow("🧙 You","he",Math.ceil(L/hpMax*10),L)+barRow("👑 King","gold",Math.ceil(K/30*10),K)+barRow("🔮 Mirror","di",Math.ceil(Mi/50*10),Mi)+(gs.length?row("🛡️ Guards",gs.length)+`<div class="chips">${gs.map(h=>h+"hp").join(" ")}</div>`:"");
   h+=sh("Blessings")+row("Bonus health",`+${bh}`)+row("Greed",greed+"%")+row("Speed",spd+"%")+row("Strength",str+"%");
   h+=sh("Status")+row("Special attack",sp?"charged":dimTxt("no"))+row("King",kb>0?"blown away":kh<=0?dimTxt("defeated"):"fighting")+row("Mirror",mb>0?"blown away":mh<=0?dimTxt("defeated"):"fighting")+row("Totem revive",heart?"ready":dimTxt("used"))+row("King's die",ph2?`d${KPD} · phase 2`:"d6");
   h+=sh("Relics")+(rel.length?rel.map(r=>row(relLabel(r),cd[r]>0?`cooldown ${cd[r]}`:"ready")).join(""):dimTxt("none"));
@@ -523,10 +524,11 @@ async function fight(){
    if(j==="x")return;
    put(`You duplicated the ${cc(deck[j])} card and added it to your deck for this fight.`);deck.push(deck[j]);used=true}
   else if(r==="A♠"){if(sp)return put("Your next attack is already enhanced.");sp=1;used=true;put("Your next attack will be enhanced and hit both enemies.")}
-  else{const who=[];if(mh>0)who.push("MIRROR");if(kh>0)who.push("KING");
-   const w=await ask("Who do you want to blow away?",[...who.map(x=>[x,x]),["x","Cancel"]]);if(w==="x")return;
+  else{const who=[];if(mh>0)who.push("MIRROR");if(gs.length)who.push("GUARD");if(kh>0)who.push("KING");
+   const w=await ask("Who do you want to blow away?",[...who.map(x=>[x,EM[x]+" "+x]),["x","Cancel"]]);if(w==="x")return;
    used=true;
    if(w==="KING"){kb=1;put("You blew away the KING! It won't be able to attack you for the next turn.")}
+   else if(w==="GUARD"){put(`🌪️ You blew ${gs.length>1?"all "+gs.length+" guards":"the guard"} away! They are gone from the fight.`,"gold");gs=[]}
    else{mb=1;put("You blew away the MIRROR! It won't be able to attack you for the next turn.")}}
   if(used){sfx("power");cd[r]=CDN[r];put(`${cc(r)} is recharging for ${CDN[r]} turn${CDN[r]>1?"s":""}.`);statsFn()}
  }
@@ -546,7 +548,7 @@ Strength: Chance to deal double damage.
 Dexterity: Increase your health.
 You can use several relics in one turn, but each relic has its own cooldown once used (♠ 1 turn, ♥ 3 turns, ♦ 1 turn, ♣ 2 turns).
 Bet: pick higher (>6) or lower (<6) before drawing. If your card matches, your damage is doubled this turn. If not (a 6 always loses), the card breaks and your attack deals no damage.
-Phase 2: when the KING falls below 20 HP he rolls a d20 instead of a d6.
+Phase 2: when the KING falls below 20 HP he rolls a d20 instead of a d6.\nGuard: each turn the KING has a 10% chance to call a GUARD (10 HP, hits you for 3 every turn). Guards can pile up with no limit. You attack one guard at a time, and the ♣ Fan blows all of them away.
 Health, enemy health, blessings, relics and your deck are shown on the scroll beside the game.
 ${cc("A♠")}: Enhances your next attack and hits both enemies (cooldown 1 turn).
 ${cc("A♥")}: Heals yourself an amount equal to the value of a random card from your deck (cooldown 3 turns). It also can revive you from death once.
@@ -559,8 +561,8 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
    if(rand()<greed/100){const n=rnd(deck);put(`Your greed gets the better of you! You draw again and reveal ${cc(n)}`);await sleep(400);
     if(bt<0?parseInt(n)<parseInt(you):parseInt(n)>parseInt(you)){put(`You choose ${cc(n)}`);you=n}else put(`You choose ${cc(you)}`)}}
   const y=parseInt(you);
-  if(mh>0){const m=rnd(mirrorDeck);mdr=parseInt(m);put(`MIRROR draw and reveal ${cc(m)}`);await sleep(400)}
-  if(kh>0){const f=ph2?KPD:6;kdr=1+Math.floor(rand()*f);put(`KING rolls a d${f} and gets a ${kdr}`);await sleep(400)}
+  if(mh>0){const m=rnd(mirrorDeck);mdr=parseInt(m);put(`🔮 MIRROR draw and reveal ${cc(m)}`);await sleep(400)}
+  if(kh>0){const f=ph2?KPD:6;kdr=1+Math.floor(rand()*f);put(`👑 KING rolls a d${f} and gets a ${kdr}`);await sleep(400)}
   let mult=1,fizzle=false;
   if(bt){const win=bt>0?y>6:y<6;
    if(win){mult=2;sfx("bless");put(`Your bet pays off! ${cc(you)} is ${bt>0?"higher":"lower"} than 6, so your damage is doubled this turn!`,"gold")}
@@ -572,30 +574,38 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
    put("You're waiting for the perfect moment to use your special attack...");await sleep(300);
    if(kh>0){put("The KING attacks you.");hp-=kdr}
    if(mh>0){put("The MIRROR attacks you.");hp-=mdr}
+   for(const g of gs){put("The GUARD attacks you.");hp-=3}
    H();
    if(dead()){put("You failed to catch the right moment. You have been defeated by the KING and MIRROR...","bad");lost=true}
    else if(fizzle){put("Your special attack fizzles out because the bet failed.","bad");sp=0}
    else{put("Your attack hits both the KING and the MIRROR!");const b=crit()*mult;
     if(kh>0){kh-=b*y;put(`The KING's health is now ${Math.max(kh,0)}`)}
     if(mh>0){mh-=b*y;put(`The MIRROR's health is now ${Math.max(mh,0)}`)}
+    if(gs.length){gs=gs.map(h=>h-b*y).filter(h=>h>0);put(`Your attack hits every GUARD! ${gs.length} left.`)}
     sp=0}
   }else{
    for(const [nm,hv,d,bl] of [["KING",kh,kdr,kb],["MIRROR",mh,mdr,mb]]){
     if(lost||hv<=0||y>=d)continue;
     if(bl>0){put(`The ${nm} is blown away and can't attack you this turn!`);continue}
-    sfx("hurt");put(`The ${nm} attacks you.`);hp-=d;await sleep(400);
+    sfx("hurt");put(`${EM[nm]} The ${nm} attacks you.`);hp-=d;await sleep(400);
     if(rand()<spd/100){put(`Fortunately, you dodged the ${nm}'s attack!`);hp+=d}
     H();
     if(dead()){put("You have been defeated by the KING and MIRROR...","bad");lost=true}
    }
+   for(const g of gs){if(lost)break;
+    sfx("hurt");put("🛡️ The GUARD attacks you.");hp-=3;await sleep(400);
+    if(rand()<spd/100){put("Fortunately, you dodged the GUARD's attack!");hp+=3}
+    H();if(dead()){put("You have been defeated by the KING and his guards...","bad");lost=true}}
    if(!lost&&fizzle)put("You can't attack this turn.","dim");
    if(!lost&&!fizzle){
     const who=[];
     if(mh>0&&y>=mdr&&mb===0)who.push("MIRROR");
+    if(gs.length)who.push("GUARD");
     if(kh>0&&y>=kdr&&kb===0)who.push("KING");
     if(who.length){
-     const w=who.length===1?who[0]:await ask(`Who do you want attack ${who.join("/")}?`,who.map(x=>[x,x]));
+     const w=who.length===1?who[0]:await ask(`Who do you want attack ${who.join("/")}?`,who.map(x=>[x,EM[x]+" "+x]));
      if(w==="MIRROR"){sfx("hit");put("You attacked the MIRROR!");mh-=crit()*y*mult;put(`The mirror image's health is now ${Math.max(mh,0)}`)}
+     else if(w==="GUARD"){sfx("hit");put("You attacked the GUARD!");gs[0]-=crit()*y*mult;put(`The GUARD's health is now ${Math.max(gs[0],0)}`);if(gs[0]<=0){gs.shift();put(`🛡️ The GUARD is defeated! ${gs.length} left.`,"gold")}}
      else{const dmg=(y-kdr)*mult;put(`You attacked the KING, but he blocked your attack. However, the KING suffered ${dmg} damage from the impact!`);kh-=dmg;put(`The KING's health is now ${Math.max(kh,0)}`);
       if(rand()<.5&&!bare){await sleep(500);put("Your weapon got destroyed by the KING's sword during the fight.");
        const i=deck.indexOf(you);if(i>=0)deck.splice(i,1);
@@ -605,8 +615,16 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
   }
   statsFn();
   if(lost)return 1;
-  if(!ph2&&kh>0&&kh<KPH){ph2=true;put(`The KING's armor cracks and his sword burns with dark light! PHASE 2: from now on he rolls a d${KPD}!`,"gold");statsFn()}
-  kb=Math.max(0,kb-1);mb=Math.max(0,mb-1);
+  if(!ph2&&kh>0&&kh<KPH){ph2=true;sfx("rage");
+   put("The KING staggers backward, clutching his bleeding chest...","gold");
+   put('👑 KING: "YOU... YOU DARE?! A WORM LIKE YOU MADE ME BLEED?!"',"bad");
+   put("The Joker's sword screams as it cracks open, and a blood-red light bursts out of the blade.","gold");
+   if(mh>0)put("🔮 The MIRROR trembles and kneels before its master.");
+   put('👑 KING: "ENOUGH!! I AM THE KING! I WILL TEAR YOU APART!"',"bad");
+   put(`💥 PHASE 2: the KING is FURIOUS! From now on he rolls a d${KPD}!`,"bad");statsFn()}
+  if(kh>0&&rand()<GP){gs.push(10);sfx("bad");put(`👑 The KING calls for a 🛡️ GUARD! (10 HP, hits for 3 every turn, ${gs.length} now) Defeat them, or blow them away with ${cc("A♣")}!`,"bad");statsFn()}
+  if(kh<=0&&gs.length){gs=[];put('🛡️ The guards lose their nerve: "The King has fallen! Run for your lives!" They drop their spears and scatter into the dark.',"gold");if(mh>0)put("Only the 🔮 MIRROR still stands against you.","gold");statsFn()}
+  kb=Math.max(0,kb-1);mb=Math.max(0,mb-1);mb2=Math.max(0,mb2-1);
   if(kh<=0&&mh>0&&!kd){put("Against all odds, you defeated the KING but you still have another enemy to defeat.");kd=true}
   if(mh<=0&&kh>0&&!md){put("You defeated the MIRROR, but the KING is still standing strong.");md=true}
   if(kh<=0&&mh<=0){
