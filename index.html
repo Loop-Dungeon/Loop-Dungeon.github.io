@@ -96,6 +96,8 @@ button.quiet{color:#767676}
 #optp{position:fixed;left:12px;bottom:40px;z-index:7;width:260px;box-sizing:border-box;background:#101010;border:1px solid #5a4528;padding:10px 12px;display:grid;gap:8px;font-size:13px;color:#ccc}
 #optp label{display:flex;justify-content:space-between;align-items:center;gap:8px}
 #optp input,#optp select{font:inherit;background:#0c0c0c;color:#ddd;border:1px solid #444;padding:2px 4px;max-width:130px}
+#optp a{color:#f9f1a5;text-decoration:underline}
+#optp a:hover{color:#fff}
 #optp h4{margin:0;color:#c9a96e;font-weight:400}
 #tm{position:fixed;right:30px;bottom:8px;z-index:5;font-size:13px;color:#f9f1a5;background:#0c0c0c;padding:2px 8px;border:1px solid #333}
 .k{color:#767676;margin-right:1ch}
@@ -125,8 +127,7 @@ pre.map::-webkit-scrollbar-thumb{background:#3f8f3a;border-radius:5px}
 <label>Background <select id="o_bg"><option value="bricks">Bricks<option value="black">Black<option value="navy">Midnight<option value="forest">Forest<option value="sepia">Sepia</select></label>
 <label>Text colour <select id="o_fg"><option value="gray">Gray<option value="white">White<option value="green">Green<option value="amber">Amber</select></label>
 <label>Sound <input type="checkbox" id="o_snd"><input type="range" id="o_vol" min="0" max="1" step=".1"></label>
-<label>Credit: fatlock1712</label></div>
-
+<label>Credit: <a href="https://fatlock1712.github.io" target="_blank" rel="noopener">fatlock1712</a></label></div>
 <div id="term">
  <details id="side"><summary id="sum">Stats</summary><div id="stats"></div><div id="logwrap"><button id="hbtn" type="button" aria-expanded="true" aria-controls="hist"><svg class="quill" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21 2C13 2.5 7 7 5.5 14.5L4 19l-2 3 3.2-1.8 4.5-1.5C16 17 20.5 11 21 2z" fill="#e8dcb8" stroke="#7a5a2b" stroke-width="1"/><path d="M20 3C14 7 9 12 5 20" fill="none" stroke="#7a5a2b" stroke-width="1"/><path d="M13 7l4 1M10.5 10l4.5 1M8.5 13.5l4 .8" stroke="#b79a62" stroke-width=".8" fill="none"/><circle cx="2.6" cy="21.4" r="1" fill="#2a1f14"/></svg><span id="htitle">Adventure log</span><span id="hchev" aria-hidden="true">▾</span></button><div id="hist"></div></div></details>
  <div id="main">
