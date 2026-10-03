@@ -90,6 +90,8 @@ button{font:inherit;color:#ddd;background:none;border:1px solid #3a3a3a;padding:
 button:hover{background:#1c1c1c;border-color:#666}
 button:focus-visible{outline:2px solid #f9f1a5;outline-offset:2px}
 button.quiet{color:#767676}
+.land{position:relative;outline:2px solid #16c60c;outline-offset:-1px;background:rgba(22,198,12,.22)}
+.land::before{content:"\25B6";position:absolute;left:-1.3ch;top:0;color:#16c60c}
 #spd{position:fixed;left:12px;bottom:8px;z-index:5;font-size:12px;padding:2px 8px;color:#767676;border-color:#2a2a2a;background:#0c0c0c}
 #spd:hover{color:#ddd}
 .k{color:#767676;margin-right:1ch}
@@ -213,7 +215,7 @@ function printMap(){
   else{t=c[0];k=CL[c[0].slice(-1)]}
   return `<span class="${k}">${ctr(t,W)}</span>`});
  let h="";for(let i=0;i<cells.length;i+=10)h+=pre+cells.slice(i,i+10).join(sep)+post+"\n";
- const p=document.createElement("pre");p.className="map";p.innerHTML=h.trimEnd();enq(p)}
+ const p=document.createElement("pre");p.className="map";p.innerHTML=h.trimEnd();enq(p);return p}
 function show(){
  if(B.length)put(`You have the following cards in your backpack: ${ccs(B)}`);
  if(R.length)put(`You have the following relics: ${ccs(R)}`);
@@ -224,14 +226,16 @@ async function ask(q,opts){
  await drained();
  statsFn();
  let n=0;
- const os=opts.map(o=>({key:o[0],label:o[1],cls:o[2],code:o[3]!==undefined?String(o[3]):(o[0]==="x"?"0":String(++n))}));
+ const os=opts.map(o=>({key:o[0],label:o[1],cls:o[2],code:o[3]!==undefined?String(o[3]):(o[0]==="x"?"0":String(++n)),hv:o[4]}));
  const pt=`${q} (${os.map(o=>o.code).join("/")}):`;
  return new Promise(res=>{
   const inp=$("in"),b=$("btns");
   $("pq").innerHTML=pt;$("pl").hidden=false;inp.value="";b.innerHTML="";
   const pick=o=>{cur=null;$("pl").hidden=true;b.innerHTML="";put(`<span class="dim">${pt}</span> ${o.code}`);res(o.key)};
   os.forEach(o=>{const el=document.createElement("button");el.type="button";if(o.cls)el.className=o.cls;
-   el.innerHTML=`<span class="k">${o.code}</span>${o.label}`;el.onclick=()=>pick(o);b.appendChild(el)});
+   el.innerHTML=`<span class="k">${o.code}</span>${o.label}`;el.onclick=()=>pick(o);
+   if(o.hv){const on=()=>o.hv(true),off=()=>o.hv(false);el.onmouseenter=on;el.onmouseleave=off;el.onfocus=on;el.onblur=off}
+   b.appendChild(el)});
   cur=v=>{const o=os.find(x=>x.code===v);if(o)pick(o);else{put(`<span class="dim">${pt}</span> ${esc_(v)}`);put("Invalid input. Try again.","bad")}};
   if(matchMedia("(pointer:fine)").matches)inp.focus();
   log.scrollTop=1e9;
@@ -304,8 +308,10 @@ async function explore(){
  const av=[0,1].filter(i=>isNum(T[i]));
  if(!av.length){put("No moves available. You can't explore because neither of the first two cards are numbers.");
   if(!B.length&&!R.length&&T[0][1]!=="H"&&(!T[1]||T[1][1]!=="H")){put("You have no cards in your backpack and no relics to help you.");over=true}return}
- printMap();
- const k=await ask(`Available moves: ${av.map(i=>cc(T[i][0])).join(" / ")}. Do you want to explore?`,[...av.map(i=>[i,`${cc(T[i][0])} (jump ${num(T[i])})`,"",i+1]),["x","Don't explore"]]);
+ const mp=printMap();
+ const mark=(idx,on)=>{const c=mp.querySelectorAll("span")[idx%T.length];if(c)c.classList.toggle("land",on)};
+ const k=await ask(`Available moves: ${av.map(i=>cc(T[i][0])).join(" / ")}. Do you want to explore?`,[...av.map(i=>[i,`${cc(T[i][0])} (jump ${num(T[i])})`,"",i+1,on=>mark(num(T[i]),on)]),["x","Don't explore"]]);
+ mp.querySelectorAll(".land").forEach(c=>c.classList.remove("land"));
  if(k==="x")return put("You decide not to explore.");
  const n=num(T[k]);put("You decide to explore!");
  for(let i=0;i<n;i++)T.push(T.shift());
