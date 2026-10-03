@@ -192,7 +192,8 @@ async function revealMap(n){
  n.innerHTML=rows.join("\n");log.scrollTop=1e9}
 async function pump(){busy=true;
  while(Q.length){const n=Q.shift();
-  if(n.classList.contains("m")){await typeNode(n);addHist(n)}
+  if(typeof n==="function")n();
+  else if(n.classList.contains("m")){await typeNode(n);addHist(n)}
   else if(n.classList.contains("map"))await revealMap(n);
   else{log.appendChild(n);log.scrollTop=1e9}
   const d=LINE_GAP_MS*SPEEDS[si].m;if(d>0&&Q.length)await wait(d)}
@@ -205,6 +206,7 @@ const hist=$("hist");
  set(o)}
 function addHist(n){hist.appendChild(n.cloneNode(true));while(hist.children.length>400)hist.firstChild.remove();hist.scrollTop=1e9}
 const enq=n=>{Q.push(n);if(!busy)pump()};
+const cue=f=>enq(f);
 const drained=()=>busy||Q.length?new Promise(r=>idle.push(r)):Promise.resolve();
 function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;enq(d)}
 const OPT={spd:0,tm:0,bg:"bricks",fg:"gray",snd:1,vol:.4};
@@ -228,11 +230,16 @@ setInterval(()=>{if(OPT.tm)$("tm").textContent="⏱ "+fmt((tE||performance.now()
 let allRel=false;
 function got(){if(!allRel&&R.length+U.length===4){allRel=true;sfx("achieve")}else sfx("lucky")}
 let AC=null;
-const SFX={select:[[660,.05]],rage:[[0,.12],[70,.12,"sawtooth"],[95,.12,"sawtooth"],[130,.12,"sawtooth"],[180,.12,"sawtooth"],[260,.3,"sawtooth"],[0,.18],[55,.45,"sawtooth"]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.15],[200,.1]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
-function sfx(n){if(!OPT.snd)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();let t=AC.currentTime;
- for(const[f,d,w]of SFX[n]){const g=AC.createGain();g.gain.setValueAtTime(OPT.vol*.25,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
-  if(f){o=AC.createOscillator();o.type=w||"square";o.frequency.value=f}else{const b=AC.createBuffer(1,AC.sampleRate*d|0,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;o=AC.createBufferSource();o.buffer=b}
-  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d);t+=d}}catch(e){}}
+const SFX={select:[[660,.05]],wind:[[-1,.6,0,3]],pierce:[[2000,.02],[1600,.02],[1200,.02],[800,.02],[0,.05,0,2],[130,.1,"triangle",3]],clink:[[2400,.03,"triangle"],[0,.02],[1800,.03,"triangle"],[3000,.025,"triangle"],[0,.03],[2200,.04,"triangle"]],sacred:[[784,.1,"triangle",2],[1047,.1,"triangle",2],[1568,.35,"triangle",2]],rage:[[0,.15,0,3],[200,.1,"sawtooth",2],[280,.1,"sawtooth",2],[400,.1,"sawtooth",2],[560,.12,"sawtooth",2],[0,.1,0,3],[150,.5,"square",2.5]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.03,0,2],[0,.02],[220,.02],[0,.05,0,1.5],[0,.02],[330,.03],[0,.03],[0,.06,0,2],[180,.04],[0,.03],[0,.04]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
+const DOOR=new Audio("door-slam.mp3");
+function door(){if(!OPT.snd)return;try{DOOR.volume=Math.min(1,OPT.vol*1.5);DOOR.currentTime=0;DOOR.play().catch(()=>{})}catch(e){}}
+const RS={"A♥":"sacred","A♠":"pierce","A♦":"clink","A♣":"wind"};
+function sfx(n){if(!OPT.snd||!SFX[n])return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();let t=AC.currentTime;
+ for(const[f,d,w,gm]of SFX[n]){const g=AC.createGain();g.gain.setValueAtTime(OPT.vol*.25*(gm||1),t);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
+  if(f>0){o=AC.createOscillator();o.type=w||"square";o.frequency.value=f;o.connect(g)}
+  else{const bf=AC.createBuffer(1,AC.sampleRate*d|0,AC.sampleRate),a=bf.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;o=AC.createBufferSource();o.buffer=bf;
+   if(f<0){const fl=AC.createBiquadFilter();fl.type="bandpass";fl.Q.value=1.2;fl.frequency.setValueAtTime(300,t);fl.frequency.linearRampToValueAtTime(1800,t+d*.5);fl.frequency.linearRampToValueAtTime(500,t+d);o.connect(fl);fl.connect(g)}else o.connect(g)}
+  g.connect(AC.destination);o.start(t);o.stop(t+d);t+=d}}catch(e){}}
 const TITLE=[
 [" █████                                     "," ██████████                                                             ",""],
 ["▒▒███                                ","      ▒▒███▒▒▒▒███                                                              ",""],
@@ -287,7 +294,7 @@ $("f").onsubmit=e=>{e.preventDefault();const v=$("in").value.trim().toLowerCase(
 document.addEventListener("keydown",e=>{if(cur&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1&&document.activeElement!==$("in")&&!["BUTTON","INPUT","SELECT"].includes(document.activeElement.tagName))$("in").focus()});
 
 /* ---------- sidebar ---------- */
-const RN={"♠":["Spear","Collect the next N cards (N = number on top card)"],"♥":["Totem","Blocks one statue, or recovers a used relic"],"♦":["Knapsack","Move a card from inventory to backpack"],"♣":["Fan","Blows the statue at the front away"]};
+const RN={"♠":["Spear","Collect the next N cards (N = number on top card)"],"♥":["Sacred Heart","Blocks one statue, or recovers a used relic"],"♦":["Mammon's Purse","Move a card from inventory to backpack"],"♣":["Fan","Blows the statue at the front away"]};
 const relLabel=r=>`${cc(r)} <span title="${RN[r.slice(-1)][1]}">${RN[r.slice(-1)][0]}</span>`;
 const row=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
 const sh=t=>`<div class="sh">${t}</div>`;
@@ -331,7 +338,7 @@ async function campfire(){
  for(let n=2;n>0&&U.length;n--){
   const k=await ask(`You used ${U.map(cc).join(" / ")}. Which relic do you want to recover?`,[...U.map((r,i)=>[i,cc(r)]),["x","Skip"]]);
   if(k==="x"){put("You decide not to recover any relics.");break}
-  const r=U.splice(k,1)[0];R.push(r);
+  const r=U.splice(k,1)[0];R.push(r);sfx("fire");
   put(n===2&&U.length?`You recovered the ${cc(r)} relic. You can recover 1 more relic(s).`:`You recovered the ${cc(r)} relic. You have recovered all your relics for now.`)}}
 async function land(c){
  if(trap(c)){
@@ -339,7 +346,7 @@ async function land(c){
   else{sfx("lose");put(`You face a statue (${cc(c[0])})!`,"bad");over=true}
  }else if(isNum(c)){take(c[0]);T.shift()}
  else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift();got()}
- else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;sfx("win");put("You found an exit!","gold")}
+ else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;door();put("You found an exit!","gold")}
  else if(c[1]!=="H"&&c[0]==="Campfire")await campfire();
  else put("You land on a face-down card. Nothing happens.");
 }
@@ -351,7 +358,7 @@ function stuck(){
  if(B.length)return false;                            /* can put a backpack card on top */
  for(const r of R){
   if(r==="A♥"&&U.length)return false;                 /* totem can recover a relic */
-  if(r==="A♦"&&inv.length)return false;               /* knapsack can fetch a card */
+  if(r==="A♦"&&inv.length)return false;               /* purse can fetch a card */
   if(r==="A♣"&&trap(T[0]))return false;               /* fan can clear the statue */
  }
  return true}
@@ -389,6 +396,7 @@ function collect(){
  T.shift();B.push(c[0]);sfx("coin");put(`You collected the card ${cc(c[0])} and add it to your backpack.`);show()}
 async function pack(){
  if(!B.length)return put("You have no cards in your backpack to use.");
+ sfx("clink");
  put(`You have the following cards in your backpack: ${ccs(B)}`);
  const k=await ask("Which card do you want to use?",[...B.map((c,i)=>[i,cc(c)]),["x","Cancel"]]);
  if(k==="x")return put("You decide not to use a card.");
@@ -400,7 +408,7 @@ async function relic(){
  if(!R.length)return put("You have no relics to use.");
  const k=await ask(`You have the following relics: ${R.map(cc).join(" / ")}. Which relic do you want to use?`,[...R.map((r,i)=>[i,cc(r)]),["x","Cancel"]]);
  if(k==="x")return put("You decide not to use a relic.");
- const r=R[k],spend=()=>{R.splice(k,1);U.push(r)};
+ const r=R[k],spend=()=>{sfx(RS[r]);R.splice(k,1);U.push(r)};
  if(r==="A♥"){
   if(!U.length)return put("You have no used relics to recover.");
   const j=await ask(`You used the ${cc("A♥")} relic. Which relic do you want to recover ${U.map(cc).join(" / ")}?`,[...U.map((x,i)=>[i,cc(x)]),["x","Cancel"]]);
@@ -443,8 +451,8 @@ Your inventory, relics, suit progress and dungeon odds are always shown on the s
 
 === Relic Effects ===
 ${cc("A♠")}: A spear. Based on the number on the top card, you can collect the corresponding number of face-up number cards and relics. It can't trigger Exit or Campfire cards.
-${cc("A♥")}: A totem. Saves you from a battle with an enemy card or you can use it to recover a used relic.
-${cc("A♦")}: A knapsack. Allows you to take a card from your inventory to your backpack if you have space.
+${cc("A♥")}: A sacred heart. Saves you from a battle with an enemy card or you can use it to recover a used relic.
+${cc("A♦")}: Mammon's Purse, a purse of greed. Allows you to take a card from your inventory to your backpack if you have space.
 ${cc("A♣")}: A fan. Blows an enemy away from the dungeon.
 
 === Event cards ===
@@ -490,20 +498,20 @@ async function fight(){
  put("His sword isn't a normal one, your feelings say, and he even joined the fight?!?");
  put("This isn't a fair fight, but you have come this far. You have to fight for your life and the freedom you just got a taste of.");
  put("👑 KING and 🔮 MIRROR");
- let kh=30,mh=50,hp=50,deck=[...inv,...B],rel=[...R,...U],mirrorDeck=[...deck];
+ let kh=40,mh=50,hp=50,deck=[...inv,...B],rel=[...R,...U],mirrorDeck=[...deck];
  let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,sp=0,ph2=false,gs=[],mb2=0,kc=0,kcd=2,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
  for(const r of B){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
  hp+=bh;
  const hpMax=50+bh;
  const EM={KING:"👑",MIRROR:"🔮",GUARD:"🛡️"};
  const KPH=20,KPD=20,GP=.1;                              /* GP: chance per turn that the King calls a guard */                                    /* King phase 2: below KPH hp he rolls a d(KPD) */
- const CDN={"A♥":3,"A♠":1,"A♦":1,"A♣":2};                /* relic cooldowns, in turns */
+ const CDN={"A♥":3,"A♠":2,"A♦":2,"A♣":2};                /* relic cooldowns, in turns */
  const cd={"A♥":0,"A♠":0,"A♦":0,"A♣":0};
  statsFn=()=>{
   const L=Math.max(hp,0),K=Math.max(kh,0),Mi=Math.max(mh,0);
-  let h=sh("The fight")+row("Turn",tc)+barRow("🧙 You","he",Math.ceil(L/hpMax*10),L)+barRow("👑 King","gold",Math.ceil(K/30*10),K)+barRow("🔮 Mirror","di",Math.ceil(Mi/50*10),Mi)+(gs.length?row("🛡️ Guards",gs.length)+`<div class="chips">${gs.map(h=>h+"hp").join(" ")}</div>`:"");
+  let h=sh("The fight")+row("Turn",tc)+barRow("🧙 You","he",Math.ceil(L/hpMax*10),L)+barRow("👑 King","gold",Math.ceil(K/40*10),K)+barRow("🔮 Mirror","di",Math.ceil(Mi/50*10),Mi)+(gs.length?row("🛡️ Guards",gs.length)+`<div class="chips">${gs.map(h=>h+"hp").join(" ")}</div>`:"");
   h+=sh("Blessings")+row("Bonus health",`+${bh}`)+row("Greed",greed+"%")+row("Speed",spd+"%")+row("Strength",str+"%");
-  h+=sh("Status")+row("Special attack",sp?"charged":dimTxt("no"))+row("King",kb>0?"blown away":kh<=0?dimTxt("defeated"):"fighting")+row("Mirror",mb>0?"blown away":mh<=0?dimTxt("defeated"):"fighting")+row("Totem revive",heart?"ready":dimTxt("used"))+row("King's die",ph2?`d${KPD} · phase 2`:"d6");
+  h+=sh("Status")+row("Special attack",sp?"charged":dimTxt("no"))+row("King",kb>0?"blown away":kh<=0?dimTxt("defeated"):"fighting")+row("Mirror",mb>0?"blown away":mh<=0?dimTxt("defeated"):"fighting")+row("Sacred Heart revive",heart?"ready":dimTxt("used"))+row("King's die",ph2?`d${KPD} · phase 2`:"d6");
   h+=sh("Relics")+(rel.length?rel.map(r=>row(relLabel(r),cd[r]>0?`cooldown ${cd[r]}`:"ready")).join(""):dimTxt("none"));
   h+=sh("Deck")+row("Cards",bare?"bare hands":deck.length)+(deck.length?`<div class="chips">${deck.map(cc).join(" ")}</div>`:"");
   draw(`Fight · You ${L} · King ${K} · Mirror ${Mi}`,h)};
@@ -521,7 +529,7 @@ async function fight(){
   const k=await ask(`You have the following relics: ${av.map(cc).join(" / ")}. Which relic do you want to use?`,[...av.map((r,i)=>[i,cc(r)]),["x","Cancel"]]);
   if(k==="x")return put("You decide not to use a relic.");
   const r=av[k];let used=false;
-  if(r==="A♥"){if(!heart)return put("Your totem is already used up.");const v=deck.length?parseInt(rnd(deck)):1;hp+=v;put(`You used the relic and healed yourself ${v} HP.`);used=true}
+  if(r==="A♥"){if(!heart)return put("Your Sacred Heart is already used up.");const v=deck.length?parseInt(rnd(deck)):1;hp+=v;put(`You used the relic and healed yourself ${v} HP.`);used=true}
   else if(r==="A♦"){if(!deck.length)return put("You have no cards to duplicate.");
    const j=await ask(`You used the relic. Which card do you want to duplicate from your inventory? ${ccs(deck)}?`,[...deck.map((c,i)=>[i,cc(c)]),["x","Cancel"]]);
    if(j==="x")return;
@@ -533,7 +541,7 @@ async function fight(){
    if(w==="KING"){kb=1;put("You blew away the KING! It won't be able to attack you for the next turn.")}
    else if(w==="GUARD"){put(`🌪️ You blew ${gs.length>1?"all "+gs.length+" guards":"the guard"} away! They are gone from the fight.`,"gold");gs=[]}
    else{mb=1;put("You blew away the MIRROR! It won't be able to attack you for the next turn.")}}
-  if(used){sfx("power");cd[r]=CDN[r];put(`${cc(r)} is recharging for ${CDN[r]} turn${CDN[r]>1?"s":""}.`);statsFn()}
+  if(used){sfx(RS[r]);cd[r]=CDN[r];put(`${cc(r)} is recharging for ${CDN[r]} turn${CDN[r]>1?"s":""}.`);statsFn()}
  }
  for(;;){
   const k=await ask(`Turn ${tc}, what is your choice? fight/bet/relic?`,[["f","Fight",,"f"],["b","Bet",,"b"],["r","Relic",,"r"],["help","Help",,"help"]]);
@@ -549,13 +557,13 @@ async function fight(){
 Speed: Chance to dodge an attack.
 Strength: Chance to deal double damage.
 Dexterity: Increase your health.
-You can use several relics in one turn, but each relic has its own cooldown once used (♠ 1 turn, ♥ 3 turns, ♦ 1 turn, ♣ 2 turns).
+You can use several relics in one turn, but each relic has its own cooldown once used (♠ 2 turns, ♥ 3 turns, ♦ 2 turns, ♣ 2 turns).
 Bet: pick higher (>6) or lower (<6) before drawing. If your card matches, your damage is doubled this turn. If not (a 6 always loses), the card breaks and your attack deals no damage.
 Phase 2: when the KING falls below 20 HP he rolls a d20 instead of a d6.\nGuard: each turn the KING has a 10% chance to call a GUARD (10 HP, hits you for 3 every turn). Guards can pile up with no limit. You attack one guard at a time, and the ♣ Fan blows all of them away.
 Health, enemy health, blessings, relics and your deck are shown on the scroll beside the game.
-${cc("A♠")}: Enhances your next attack and hits both enemies (cooldown 1 turn).
+${cc("A♠")}: Enhances your next attack and hits both enemies (cooldown 2 turns).
 ${cc("A♥")}: Heals yourself an amount equal to the value of a random card from your deck (cooldown 3 turns). It also can revive you from death once.
-${cc("A♦")}: Create a duplicate of a card from your deck (cooldown 1 turn).
+${cc("A♦")}: Create a duplicate of a card from your deck (cooldown 2 turns).
 ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can't attack the enemy that was blown away. Cooldown: 2 turns.`);continue}
   tc++;for(const r in cd)cd[r]=Math.max(0,cd[r]-1);
   let you;
@@ -618,12 +626,12 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
   }
   statsFn();
   if(lost)return 1;
-  if(!ph2&&kh>0&&kh<KPH){ph2=true;sfx("rage");
+  if(!ph2&&kh>0&&kh<KPH){ph2=true;cue(()=>sfx("rage"));
    put("The KING staggers backward, clutching his bleeding chest...","gold");
    put('👑 KING: "YOU... YOU DARE?! A WORM LIKE YOU MADE ME BLEED?!"',"bad");
    put("The Joker's sword screams as it cracks open, and a blood-red light bursts out of the blade.","gold");
    if(mh>0)put("🔮 The MIRROR trembles and kneels before its master.");
-   put('👑 KING: "ENOUGH!! I AM THE KING! I WILL TEAR YOU APART!"',"bad");
+   cue(()=>sfx("rage"));put('👑 KING: "ENOUGH!! I AM THE KING! I WILL TEAR YOU APART!"',"bad");
    put(`💥 PHASE 2: the KING is FURIOUS! From now on he rolls a d${KPD}!`,"bad");statsFn()}
   if(kh>0&&rand()<GP){gs.push(10);sfx("bad");put(`👑 The KING calls for a 🛡️ GUARD! (10 HP, hits for 3 every turn, ${gs.length} now) Defeat them, or blow them away with ${cc("A♣")}!`,"bad");statsFn()}
   if(kh<=0&&gs.length){gs=[];put('🛡️ The guards lose their nerve: "The King has fallen! Run for your lives!" They drop their spears and scatter into the dark.',"gold");if(mh>0)put("Only the 🔮 MIRROR still stands against you.","gold");statsFn()}
@@ -654,7 +662,7 @@ async function game0(){
  }
  if(esc){
   const n=R.length+U.length;score=inv.length*(1+n)*(1+M.length);
-  sfx("win");put(ccs(inv));put(ccs([...R,...U]));
+  setTimeout(()=>sfx("win"),1500);put(ccs(inv));put(ccs([...R,...U]));
   if(n===4)put("You escaped with all 4 relics! With that feat, you had a chance to be granted an audience with the King.","gold");
   else if(n>=2)put(`You escaped with ${n} relics. With that feat, you had a chance to granted an audience with the King`,"gold");
   if(n>=2)await king();
