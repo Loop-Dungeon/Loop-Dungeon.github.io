@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loop Dungeon</title>
+<link rel="icon" type="image/x-icon" href="loopdungeon.ico">
+<link rel="shortcut icon" href="loopdungeon.ico">
 <style>
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;background:#0c0c0c}
@@ -11,20 +13,30 @@ body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"Deja
 :root{--sbw:0px}
 #term{max-width:1400px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:12px 16px;gap:10px}
 #main{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}
-#side{order:-1;flex:none;border:1px solid #333}
-#side summary{cursor:pointer;padding:6px 10px;color:#9a9a9a}
-#stats{padding:0 10px 8px;max-height:38vh;overflow:auto;font-size:13px}
-.sh{color:#f9f1a5;margin:10px 0 2px}
+#side{order:-1;flex:none;border:0}
+#side summary{cursor:pointer;padding:6px 10px;color:#c9a96e;border:1px solid #5a4528;background:#1d160d}
+/* the stats live on an unrolled parchment scroll */
+#stats{
+ padding:24px 14px 24px;max-height:38vh;overflow:auto;font-size:13px;color:#e4d6b0;
+ border-left:1px solid #5a4528;border-right:1px solid #5a4528;
+ background:
+  linear-gradient(#3b2711 0,#7a5230 25%,#c59a62 50%,#7a5230 75%,#3b2711 100%) top/100% 14px no-repeat local,
+  linear-gradient(#3b2711 0,#7a5230 25%,#c59a62 50%,#7a5230 75%,#3b2711 100%) bottom/100% 14px no-repeat local,
+  linear-gradient(90deg,rgba(0,0,0,.5) 0,transparent 7%,transparent 93%,rgba(0,0,0,.5) 100%),
+  repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 2px,rgba(0,0,0,.03) 2px 4px),
+  #2b2014;
+ box-shadow:0 0 0 1px #0c0c0c,0 6px 18px rgba(0,0,0,.6)}
+.sh{color:#f9f1a5;margin:10px 0 2px;border-bottom:1px dashed rgba(201,169,110,.35)}
 .sh:first-child{margin-top:2px}
 .r{display:flex;justify-content:space-between;gap:10px;white-space:pre}
-.r>span:first-child{color:#9a9a9a}
+.r>span:first-child{color:#b8a47c}
 .chips{word-spacing:.6ch}
 @media(min-width:1100px){
  :root{--sbw:340px}
  #term{flex-direction:row;gap:16px}
- #side{order:0;width:300px;border:0;border-left:1px solid #333;padding-left:16px;overflow:auto}
+ #side{order:0;width:300px;padding:0 0 0 16px;overflow:auto;align-self:flex-start;max-height:100%}
  #side summary{display:none}
- #stats{max-height:none;padding:0;font-size:14px}
+ #stats{max-height:none;overflow:visible;font-size:14px}
 }
 #log{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px}
 .m{margin:0 0 6px;white-space:pre-wrap;word-break:break-word}
@@ -32,10 +44,12 @@ pre.title{margin:0 0 12px;line-height:1.05;font-size:min(13px,calc((100vw - 48px
 pre.map{margin:0 0 8px;overflow-x:auto;font-size:13px;line-height:1.5}
 .red{color:#e74856}
 .dim{color:#767676}
+#stats .dim{color:#8a7b5c}
 .gold,.ev{color:#f9f1a5}
 .bad{color:#e74856}
 b{font-weight:400}
 .sp{color:#9a9a9a}.he{color:#e74856}.di{color:#3bc9db}.cl{color:#16c60c}
+#stats .sp{color:#d0d0d0}
 #bar{border-top:1px solid #333;padding-top:8px}
 #pl{display:flex;flex-wrap:wrap;align-items:baseline}
 #pq{margin-right:1ch;white-space:pre-wrap}
@@ -65,7 +79,7 @@ pre.map::-webkit-scrollbar-thumb{background:#3f8f3a;border-radius:5px}
 </head>
 <body>
 <div id="term">
- <details id="side" class="vine"><summary id="sum">Stats</summary><div id="stats" class="vine"></div></details>
+ <details id="side" class="vine"><summary id="sum">Stats</summary><div id="stats"></div></details>
  <div id="main">
  <div id="log" class="vine" aria-live="polite"></div>
  <div id="bar">
@@ -99,7 +113,7 @@ const TITLE=[
 ["▒▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒   ▒▒▒▒▒▒   ▒███▒▒▒   ","  ▒▒▒▒▒▒▒▒▒▒     ▒▒▒▒▒▒▒▒ ▒▒▒▒ ▒▒▒▒▒  ▒▒▒▒▒███ ▒▒▒▒▒▒   ▒▒▒▒▒▒  ▒▒▒▒ ▒▒▒▒▒  ",""],
 ["                               ▒███             ","                               ███ ▒███                             ",""],
 ["                               █████                 ","                         ▒▒██████                             ",""],
-["                              ▒▒▒▒▒                      ","                      ▒▒▒▒▒▒        ","   (ver 1.5)"]
+["                              ▒▒▒▒▒                      ","                      ▒▒▒▒▒▒        ","   (ver 1.6)"]
 ];
 function title(){const p=document.createElement("pre");p.className="title";p.setAttribute("aria-label","Loop Dungeon");
  p.innerHTML=TITLE.map(l=>`${l[0]}<span class="red">${l[1]}</span>${l[2]}`).join("\n");log.appendChild(p)}
@@ -252,13 +266,6 @@ async function relic(){
   spend();const c=T.shift();put(`You used the ${cc(r)} relic. The statue ${cc(c[0])} at the front of the dungeon is now removed.`);printMap();
  }
 }
-function check(){
- put(`Inventory has ${inv.length} cards: ${ccs(inv)}`);
- put(`Backpack: ${ccs(B)}, Relics: ${ccs(R)}, Used Relics: ${ccs(U)}`);
- put(SU.map(s=>`${cc(s)}:${inv.filter(x=>x.endsWith(s)).length+(R.includes("A"+s)||U.includes("A"+s)?1:0)}/10`).join(", "));
- const hid=T.filter(c=>c[1]==="H"),hf=hid.filter(c=>isFace(c[0])).length;
- put(`There are ${hid.length} hidden cards (${hf} face cards) in the dungeon. The chance of the next card being an enemy is ${hid.length?(hf/hid.length*100).toFixed(2):"0.00"}%.`);
- printMap()}
 function helpText(){
  put(`You're a dungeon crawler trying to collect the four prestigious relics to pay off your crime. The deeper you go, the darker it gets.
 Can you find the exit before the shadows find you...?
@@ -270,10 +277,10 @@ e: Explore by jumping forward based on the number on the card. You can only expl
 c: Collect a revealed number card and put it in your backpack. You can only collect the first card in the dungeon and your backpack can only hold 3 cards.
 b: Use a card from your backpack and place it back on top of the dungeon.
 r: Use a relic from your inventory. Each relic has a different effect.
-ch: Check your inventory, backpack, relics, and some stats about the dungeon.
 exit: Give up the current run.
 help: View the list of commands and how to play the game.
 Type a command and press Enter, or tap a button.
+Your inventory, relics, suit progress and dungeon odds are always shown on the scroll beside the game (tap "Stats" on small screens).
 
 === Relic Effects ===
 ${cc("A♠")}: A spear. Based on the number on the top card, you can collect the corresponding number of number cards and even trigger the event cards.
@@ -294,7 +301,7 @@ Your final score will be revealed after you escape. If you lose before escaping,
 Good luck on your adventure!
 ===================================
 
-Version: 1.5
+Version: 1.6
 Credits: This game was created by fatlock1712 with a huge inspiration from the Loot the Loop game.
 It was made for a coding project and is not affiliated with the original game or its creators.`)}
 
@@ -364,19 +371,15 @@ async function fight(){
    else{mb=1;put("You blew away the MIRROR! It won't be able to attack you for the next turn.")}}
  }
  for(;;){
-  const k=await ask(`Turn ${tc}, what is your choice? fight/relic/check?`,[["f","Fight",,"f"],["r","Relic",,"r"],["ch","Check",,"ch"],["help","Help",,"help"]]);
+  const k=await ask(`Turn ${tc}, what is your choice? fight/relic?`,[["f","Fight",,"f"],["r","Relic",,"r"],["help","Help",,"help"]]);
   if(k==="r"){await frel();continue}
-  if(k==="ch"){
-   put(`Your health: ${Math.max(hp,0)}`);
-   put(`Health bonus: ${bh}, Greed: ${greed}, Speed: ${spd}, Strength: ${str}`);
-   put(`KING's health: ${kh}`);put(`MIRROR's health: ${mh}`);
-   put(`Relics: ${ccs(rel)}`);put(`Deck: ${ccs(deck)}`);continue}
   if(k==="help"){
    put(`Greed: Chance to draw 2 cards at the start of your turn.
 Speed: Chance to dodge an attack.
 Strength: Chance to deal double damage.
 Dexterity: Increase your health.
 Relics can only be used once per turn. You can choose to use a relic or fight first during your turn.
+Health, enemy health, blessings, relics and your deck are shown on the scroll beside the game.
 ${cc("A♠")}: Enchances your next attack and hit both enemies.
 ${cc("A♥")}: Heals yourself an ammount equal to the value of the card drawn from your deck. It also can revive you from death once.
 ${cc("A♦")}: Create a duplicate of a card from your deck.
@@ -441,12 +444,12 @@ async function game(){
  newState();statsFn=mainStats;log.innerHTML="";title();
  while(!over){
   const canLook=T[0][1]==="H";
-  const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["ch","Check",,"ch"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
+  const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
   const verbs=[...(canLook?["Look"]:[]),"Explore","Collect","Backpack","Relic"];
-  const a=await ask(`${verbs.join(", ")} or Check?`,opts);
+  const a=await ask(`${verbs.slice(0,-1).join(", ")} or ${verbs[verbs.length-1]}?`,opts);
   if(a==="l")look();else if(a==="e")await explore();else if(a==="c")collect();
   else if(a==="b")await pack();else if(a==="r")await relic();
-  else if(a==="ch")check();else if(a==="help")helpText();else if(a==="exit")over=true;
+  else if(a==="help")helpText();else if(a==="exit")over=true;
  }
  if(esc){
   const n=R.length+U.length;score=inv.length*(1+n)*(1+M.length);
