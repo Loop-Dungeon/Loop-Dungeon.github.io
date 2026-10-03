@@ -231,14 +231,18 @@ setInterval(()=>{if(OPT.tm)$("tm").textContent="⏱ "+fmt((tE||performance.now()
 let allRel=false;
 function got(){if(!allRel&&R.length+U.length===4){allRel=true;sfx("achieve")}else sfx("lucky")}
 let AC=null;
-const SFX={select:[[660,.05]],slam:[[0,.08,0,3],[90,.15,"sawtooth",3],[60,.3,"triangle",3]],wind:[[-1,.6,0,3]],pierce:[[2000,.02],[1600,.02],[1200,.02],[800,.02],[0,.05,0,2],[130,.1,"triangle",3]],clink:[[2400,.03,"triangle"],[0,.02],[1800,.03,"triangle"],[3000,.025,"triangle"],[0,.03],[2200,.04,"triangle"]],sacred:[[784,.1,"triangle",2],[1047,.1,"triangle",2],[1568,.35,"triangle",2]],rage:[[0,.15,0,3],[200,.1,"sawtooth",2],[280,.1,"sawtooth",2],[400,.1,"sawtooth",2],[560,.12,"sawtooth",2],[0,.1,0,3],[150,.5,"square",2.5]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.03,0,2],[0,.02],[220,.02],[0,.05,0,1.5],[0,.02],[330,.03],[0,.03],[0,.06,0,2],[180,.04],[0,.03],[0,.04]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
+const SFX={select:[[660,.04,"square",.3]],slam:[[0,.08,0,3],[90,.15,"sawtooth",3],[60,.3,"triangle",3]],wind:[[-1,.6,0,3]],pierce:[[2000,.02],[1600,.02],[1200,.02],[800,.02],[0,.05,0,2],[130,.1,"triangle",3]],clink:[[2400,.03,"triangle"],[0,.02],[1800,.03,"triangle"],[3000,.025,"triangle"],[0,.03],[2200,.04,"triangle"]],sacred:[[784,.1,"triangle",2],[1047,.1,"triangle",2],[1568,.35,"triangle",2]],rage:[[0,.15,0,3],[200,.1,"sawtooth",2],[280,.1,"sawtooth",2],[400,.1,"sawtooth",2],[560,.12,"sawtooth",2],[0,.1,0,3],[150,.5,"square",2.5]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.03,0,2],[0,.02],[220,.02],[0,.05,0,1.5],[0,.02],[330,.03],[0,.03],[0,.06,0,2],[180,.04],[0,.03],[0,.04]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
 const DOOR=new Audio();DOOR.preload="auto";DOOR.src="door-slam.mp3";let doorOk=true;DOOR.onerror=()=>{doorOk=false};
 function door(){if(!OPT.snd)return;
  if(!doorOk){sfx("slam");return}
- try{DOOR.volume=Math.min(1,OPT.vol*1.5);DOOR.currentTime=0;const p=DOOR.play();if(p&&p.catch)p.catch(()=>sfx("slam"))}catch(e){sfx("slam")}}
+ try{DOOR.volume=Math.min(1,OPT.vol*2.5);DOOR.currentTime=0;const p=DOOR.play();if(p&&p.catch)p.catch(()=>sfx("slam"))}catch(e){sfx("slam")}}
+let unl=0;
+["pointerdown","keydown"].forEach(ev=>addEventListener(ev,()=>{if(unl++)return;
+ try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume();DOOR.muted=true;const p=DOOR.play();
+  if(p&&p.then)p.then(()=>{DOOR.pause();DOOR.currentTime=0;DOOR.muted=false}).catch(()=>{DOOR.muted=false})}catch(e){DOOR.muted=false}}));
 const RS={"A♥":"sacred","A♠":"pierce","A♦":"clink","A♣":"wind"};
 function sfx(n){if(!OPT.snd||!SFX[n])return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();let t=AC.currentTime;
- for(const[f,d,w,gm]of SFX[n]){const g=AC.createGain();g.gain.setValueAtTime(OPT.vol*.25*(gm||1),t);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
+ for(const[f,d,w,gm]of SFX[n]){const g=AC.createGain();const lv=Math.min(1,OPT.vol*.5*(gm||1));g.gain.setValueAtTime(lv,t);g.gain.setValueAtTime(lv,t+d*.7);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
   if(f>0){o=AC.createOscillator();o.type=w||"square";o.frequency.value=f;o.connect(g)}
   else{const bf=AC.createBuffer(1,AC.sampleRate*d|0,AC.sampleRate),a=bf.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;o=AC.createBufferSource();o.buffer=bf;
    if(f<0){const fl=AC.createBiquadFilter();fl.type="bandpass";fl.Q.value=1.2;fl.frequency.setValueAtTime(300,t);fl.frequency.linearRampToValueAtTime(1800,t+d*.5);fl.frequency.linearRampToValueAtTime(500,t+d);o.connect(fl);fl.connect(g)}else o.connect(g)}
@@ -336,8 +340,9 @@ function bless(){for(const s of SU){if(M.includes(s))continue;
 function take(c){sfx("coin");inv.push(c);put(`Collected: ${cc(c)}!`);bless()}
 
 async function campfire(){
+ sfx("fire");
  if(!U.length)return put("You found a campfire. You can use it to recover 2 relics, but you have no relics to recover.");
- sfx("fire");put("You found a campfire. You can use it to recover 2 relics");
+ put("You found a campfire. You can use it to recover 2 relics");
  for(let n=2;n>0&&U.length;n--){
   const k=await ask(`You used ${U.map(cc).join(" / ")}. Which relic do you want to recover?`,[...U.map((r,i)=>[i,cc(r)]),["x","Skip"]]);
   if(k==="x"){put("You decide not to recover any relics.");break}
