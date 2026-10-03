@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop Dungeon</title>
+<style>
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:#0c0c0c}
+body{color:#cccccc;font:15px/1.45 "Cascadia Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace}
+#term{max-width:1040px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:12px 16px}
+#log{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px}
+.m{margin:0 0 6px;white-space:pre-wrap;word-break:break-word}
+pre.title{margin:0 0 12px;line-height:1.05;font-size:min(13px,calc((100vw - 48px)/74));overflow:hidden;color:#e6e6e6}
+pre.map{margin:0 0 8px;overflow-x:auto;font-size:13px;line-height:1.5}
+.red{color:#e74856}
+.dim{color:#767676}
+.gold,.ev{color:#f9f1a5}
+.bad{color:#e74856}
+b{font-weight:400}
+.sp{color:#9a9a9a}.he{color:#e74856}.di{color:#3bc9db}.cl{color:#16c60c}
+#bar{border-top:1px solid #333;padding-top:8px}
+#pl{display:flex;flex-wrap:wrap;align-items:baseline}
+#pq{margin-right:1ch;white-space:pre-wrap}
+#in{flex:1;min-width:8ch;background:none;border:0;color:#fff;font:inherit;outline:none;caret-color:#f9f1a5;padding:0}
+#btns{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;color:#ddd;background:none;border:1px solid #3a3a3a;padding:4px 10px;cursor:pointer}
+button:hover{background:#1c1c1c;border-color:#666}
+button:focus-visible{outline:2px solid #f9f1a5;outline-offset:2px}
+button.quiet{color:#767676}
+.k{color:#767676;margin-right:1ch}
+@media(pointer:coarse){#in{font-size:16px}}
+</style>
+</head>
+<body>
+<div id="term">
+ <div id="log" aria-live="polite"></div>
+ <div id="bar">
+  <form id="f" autocomplete="off"><div id="pl" hidden><span id="pq"></span><input id="in" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command"></div></form>
+  <div id="btns"></div>
+ </div>
+</div>
+<script>
+const SU=["♠","♥","♦","♣"],RK=[2,3,4,5,6,7,8,9,10,"J","Q","K","A"];
+const CL={"♠":"sp","♥":"he","♦":"di","♣":"cl"},NM={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms)),rnd=a=>a[Math.floor(Math.random()*a.length)];
+const esc_=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const cc=c=>c==="Exit"||c==="Campfire"?`<b class="ev">${c}</b>`:`<b class="${CL[c.slice(-1)]}">${c}</b>`;
+const ccs=a=>"["+a.map(cc).join(", ")+"]";
+const isFace=n=>/^[JQK]/.test(n),isNum=c=>!!c&&c[1]!=="H"&&/^\d+$/.test(c[0].slice(0,-1)),num=c=>parseInt(c[0]);
+const trap=c=>!!c&&c[1]!=="H"&&isFace(c[0]);
+const log=$("log");
+let T,inv,B,R,U,M,over,esc,score=0,cur=null;
+
+/* ---------- terminal output ---------- */
+function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;log.appendChild(d);log.scrollTop=1e9}
+const TITLE=[
+[" █████                                     "," ██████████                                                             ",""],
+["▒▒███                                ","      ▒▒███▒▒▒▒███                                                              ",""],
+[" ▒███         ██████   ██████  ████████   ","  ▒███   ▒▒███ █████ ████ ████████    ███████  ██████   ██████  ████████   ",""],
+[" ▒███        ███▒▒███ ███▒▒███▒▒███▒▒███  ","  ▒███    ▒███▒▒███ ▒███ ▒▒███▒▒███  ███▒▒███ ███▒▒███ ███▒▒███▒▒███▒▒███  ",""],
+[" ▒███       ▒███ ▒███▒███ ▒███ ▒███ ▒███   "," ▒███    ▒███ ▒███ ▒███  ▒███ ▒███ ▒███ ▒███▒███████ ▒███ ▒███ ▒███ ▒███ ",""],
+[" ▒███      █▒███ ▒███▒███ ▒███ ▒███ ▒███  ","  ▒███    ███  ▒███ ▒███  ▒███ ▒███ ▒███ ▒███▒███▒▒▒  ▒███ ▒███ ▒███ ▒███   ",""],
+[" ███████████▒▒██████ ▒▒██████  ▒███████   ","  ██████████   ▒▒████████ ████ █████▒▒███████▒▒██████ ▒▒██████  ████ █████  ",""],
+["▒▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒   ▒▒▒▒▒▒   ▒███▒▒▒   ","  ▒▒▒▒▒▒▒▒▒▒     ▒▒▒▒▒▒▒▒ ▒▒▒▒ ▒▒▒▒▒  ▒▒▒▒▒███ ▒▒▒▒▒▒   ▒▒▒▒▒▒  ▒▒▒▒ ▒▒▒▒▒  ",""],
+["                               ▒███             ","                               ███ ▒███                             ",""],
+["                               █████                 ","                         ▒▒██████                             ",""],
+["                              ▒▒▒▒▒                      ","                      ▒▒▒▒▒▒        ","   (ver 1.5)"]
+];
+function title(){const p=document.createElement("pre");p.className="title";p.setAttribute("aria-label","Loop Dungeon");
+ p.innerHTML=TITLE.map(l=>`${l[0]}<span class="red">${l[1]}</span>${l[2]}`).join("\n");log.appendChild(p)}
+const ctr=(t,W)=>{const p=W-t.length;if(p<=0)return t;const l=p>>1;return " ".repeat(l)+t+" ".repeat(p-l)};
+function printMap(){
+ const nw=innerWidth<700,W=nw?4:8,sep=nw?"|":" | ",pre=nw?"|":"| ",post=nw?"|":" |";
+ const cells=T.map(c=>{let t,k;
+  if(c[1]==="H"){t="H";k="dim"}
+  else if(c[0]==="Exit"||c[0]==="Campfire"){t=nw?(c[0]==="Exit"?"Exit":"Fire"):c[0];k="ev"}
+  else{t=c[0];k=CL[c[0].slice(-1)]}
+  return `<span class="${k}">${ctr(t,W)}</span>`});
+ let h="";for(let i=0;i<cells.length;i+=10)h+=pre+cells.slice(i,i+10).join(sep)+post+"\n";
+ const p=document.createElement("pre");p.className="map";p.innerHTML=h.trimEnd();log.appendChild(p);log.scrollTop=1e9}
+function show(){
+ if(B.length)put(`You have the following cards in your backpack: ${ccs(B)}`);
+ if(R.length)put(`You have the following relics: ${ccs(R)}`);
+ printMap()}
+
+/* ---------- terminal input ---------- */
+function ask(q,opts){
+ let n=0;
+ const os=opts.map(o=>({key:o[0],label:o[1],cls:o[2],code:o[3]!==undefined?String(o[3]):(o[0]==="x"?"0":String(++n))}));
+ const pt=`${q} (${os.map(o=>o.code).join("/")}):`;
+ return new Promise(res=>{
+  const inp=$("in"),b=$("btns");
+  $("pq").innerHTML=pt;$("pl").hidden=false;inp.value="";b.innerHTML="";
+  const pick=o=>{cur=null;$("pl").hidden=true;b.innerHTML="";put(`<span class="dim">${pt}</span> ${o.code}`);res(o.key)};
+  os.forEach(o=>{const el=document.createElement("button");el.type="button";if(o.cls)el.className=o.cls;
+   el.innerHTML=`<span class="k">${o.code}</span>${o.label}`;el.onclick=()=>pick(o);b.appendChild(el)});
+  cur=v=>{const o=os.find(x=>x.code===v);if(o)pick(o);else{put(`<span class="dim">${pt}</span> ${esc_(v)}`);put("Invalid input. Try again.","bad")}};
+  if(matchMedia("(pointer:fine)").matches)inp.focus();
+  log.scrollTop=1e9;
+ });
+}
+$("f").onsubmit=e=>{e.preventDefault();const v=$("in").value.trim().toLowerCase();$("in").value="";if(v&&cur)cur(v)};
+document.addEventListener("keydown",e=>{if(cur&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1&&document.activeElement!==$("in")&&document.activeElement.tagName!=="BUTTON")$("in").focus()});
+
+/* ---------- game state ---------- */
+function newState(){
+ const D=["Exit","Campfire",...SU.flatMap(s=>RK.map(r=>""+r+s))];
+ for(let i=D.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[D[i],D[j]]=[D[j],D[i]]}
+ T=D.map(c=>[c,"H"]);inv=[];B=[];R=[];U=[];M=[];over=esc=false;
+}
+function bless(){for(const s of SU){if(M.includes(s))continue;
+ if(inv.filter(x=>x.endsWith(s)).length===9&&(R.includes("A"+s)||U.includes("A"+s))){M.push(s);
+  put(`\n SUIT BLESSING: ${cc(s)} `,"gold");
+  put(`You have collected every card of the ${cc(s)} suit. You have been honored by the Royal house of ${cc(s).replace(s,NM[s])}`);
+  let n=0;T.forEach(c=>{if(c[0].endsWith(s)&&trap(c)){c[1]="H";n++}});
+  if(n)put(`All ${cc(s)} statues in the dungeon won't attack you...for now`)}}}
+function take(c){inv.push(c);put(`Collected: ${cc(c)}!`);bless()}
+
+async function campfire(){
+ if(!U.length)return put("You found a campfire. You can use it to recover 2 relics, but you have no relics to recover.");
+ put("You found a campfire. You can use it to recover 2 relics");
+ for(let n=2;n>0&&U.length;n--){
+  const k=await ask(`You used ${U.map(cc).join(" / ")}. Which relic do you want to recover?`,[...U.map((r,i)=>[i,cc(r)]),["x","Skip"]]);
+  if(k==="x"){put("You decide not to recover any relics.");break}
+  const r=U.splice(k,1)[0];R.push(r);
+  put(n===2&&U.length?`You recovered the ${cc(r)} relic. You can recover 1 more relic(s).`:`You recovered the ${cc(r)} relic. You have recovered all your relics for now.`)}}
+async function land(c){
+ if(trap(c)){
+  if(R.includes("A♥")){R.splice(R.indexOf("A♥"),1);U.push("A♥");c[1]="H";put(`You face a statue (${cc(c[0])})! However, Your ${cc("A♥")} relic saved you from the battle!`)}
+  else{put(`You face a statue (${cc(c[0])})!`,"bad");over=true}
+ }else if(isNum(c)){take(c[0]);T.shift()}
+ else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift()}
+ else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
+ else if(c[1]!=="H"&&c[0]==="Campfire")await campfire();
+ else put("You land on a face-down card. Nothing happens.");
+}
+
+/* ---------- actions ---------- */
+function look(){
+ const a=[T[0]];if(T[1]&&T[1][1]==="H")a.push(T[1]);
+ a.forEach(c=>c[1]="V");
+ put(`You look at the dungeon and see: ${a.map(c=>cc(c[0])).join(" and ")}`);show()}
+async function explore(){
+ const av=[0,1].filter(i=>isNum(T[i]));
+ if(!av.length){put("No moves available. You can't explore because neither of the first two cards are numbers.");
+  if(!B.length&&!R.length&&T[0][1]!=="H"&&(!T[1]||T[1][1]!=="H")){put("You have no cards in your backpack and no relics to help you.");over=true}return}
+ printMap();
+ const k=await ask(`Available moves: ${av.map(i=>cc(T[i][0])).join(" / ")}. Do you want to explore?`,[...av.map(i=>[i,`${cc(T[i][0])} (jump ${num(T[i])})`,"",i+1]),["x","Don't explore"]]);
+ if(k==="x")return put("You decide not to explore.");
+ const n=num(T[k]);put("You decide to explore!");
+ for(let i=0;i<n;i++)T.push(T.shift());
+ await land(T[0]);
+ if(!over||esc)show();
+}
+function collect(){
+ if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
+ if(!isNum(T[0]))return put("You can't collect a card that hasn't been revealed yet.");
+ const c=T.shift()[0];B.push(c);put(`You collected the card ${cc(c)} and add it to your backpack.`);show()}
+async function pack(){
+ if(!B.length)return put("You have no cards in your backpack to use.");
+ put(`You have the following cards in your backpack: ${ccs(B)}`);
+ const k=await ask("Which card do you want to use?",[...B.map((c,i)=>[i,cc(c)]),["x","Cancel"]]);
+ if(k==="x")return put("You decide not to use a card.");
+ const c=B.splice(k,1)[0];T.unshift([c,"V"]);
+ put(`You used the card ${cc(c)} and placed it back on top of the dungeon.`);
+ if(B.length)put(`You have the following cards in your backpack: ${ccs(B)}`);
+ printMap()}
+async function relic(){
+ if(!R.length)return put("You have no relics to use.");
+ const k=await ask(`You have the following relics: ${R.map(cc).join(" / ")}. Which relic do you want to use?`,[...R.map((r,i)=>[i,cc(r)]),["x","Cancel"]]);
+ if(k==="x")return put("You decide not to use a relic.");
+ const r=R[k],spend=()=>{R.splice(k,1);U.push(r)};
+ if(r==="A♥"){
+  if(!U.length)return put("You have no used relics to recover.");
+  const j=await ask(`You used the ${cc("A♥")} relic. Which relic do you want to recover ${U.map(cc).join(" / ")}?`,[...U.map((x,i)=>[i,cc(x)]),["x","Cancel"]]);
+  if(j==="x")return put("You decide not to recover a relic.");
+  const g=U.splice(j,1)[0];spend();R.push(g);put(`You recovered the ${cc(g)} relic.`);
+ }else if(r==="A♠"){
+  if(!isNum(T[0]))return put("The spear needs a face-up number card on top of the dungeon.");
+  spend();const n=num(T[0]);
+  put(`You used the ${cc(r)} relic. You can collect/active the ${n} next face-up number/event cards in the dungeon.`);
+  for(let i=n;i>=1;i--){const c=T[i-1];if(!c||c[1]==="H")continue;
+   if(isNum(c)){T.splice(i-1,1);put(`You collected the card ${cc(c[0])} and add it to your inventory.`);inv.push(c[0]);bless()}
+   else if(c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
+   else if(c[0]==="Campfire")await campfire();
+   else if(c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.splice(i-1,1)}}
+  printMap();
+ }else if(r==="A♦"){
+  if(B.length>2)return put("Your backpack is full. You can only have 3 cards in your backpack at a time.");
+  if(!inv.length)return put("You have no cards in your inventory to recover.");
+  const j=await ask(`You used the ${cc(r)} relic. Which card do you want to recover from your inventory? ${inv.map(cc).join(" / ")}?`,[...inv.map((c,i)=>[i,cc(c)]),["x","Cancel"]]);
+  if(j==="x")return put("You decide not to recover a card.");
+  spend();const c=inv.splice(j,1)[0];B.push(c);put(`You recovered the ${cc(c)} card and placed it in your backpack.`);
+ }else{
+  if(!trap(T[0]))return put("There is no statue at the front of the dungeon to blow away.");
+  spend();const c=T.shift();put(`You used the ${cc(r)} relic. The statue ${cc(c[0])} at the front of the dungeon is now removed.`);printMap();
+ }
+}
+function check(){
+ put(`Inventory has ${inv.length} cards: ${ccs(inv)}`);
+ put(`Backpack: ${ccs(B)}, Relics: ${ccs(R)}, Used Relics: ${ccs(U)}`);
+ put(SU.map(s=>`${cc(s)}:${inv.filter(x=>x.endsWith(s)).length+(R.includes("A"+s)||U.includes("A"+s)?1:0)}/10`).join(", "));
+ const hid=T.filter(c=>c[1]==="H"),hf=hid.filter(c=>isFace(c[0])).length;
+ put(`There are ${hid.length} hidden cards (${hf} face cards) in the dungeon. The chance of the next card being an enemy is ${hid.length?(hf/hid.length*100).toFixed(2):"0.00"}%.`);
+ printMap()}
+function helpText(){
+ put(`You're a dungeon crawler trying to collect the four prestigious relics to pay off your crime. The deeper you go, the darker it gets.
+Can you find the exit before the shadows find you...?
+
+How to play?
+=== Commands ===
+l: Look at the first one or two cards in the dungeon. But you can only look at the second card if the first card is still hidden. Once the top card is face-up, Look is not offered.
+e: Explore by jumping forward based on the number on the card. You can only explore if the first or second card is a number. If you land on face-up cards, you will trigger that card.
+c: Collect a revealed number card and put it in your backpack. You can only collect the first card in the dungeon and your backpack can only hold 3 cards.
+b: Use a card from your backpack and place it back on top of the dungeon.
+r: Use a relic from your inventory. Each relic has a different effect.
+ch: Check your inventory, backpack, relics, and some stats about the dungeon.
+exit: Give up the current run.
+help: View the list of commands and how to play the game.
+Type a command and press Enter, or tap a button.
+
+=== Relic Effects ===
+${cc("A♠")}: A spear. Based on the number on the top card, you can collect the corresponding number of number cards and even trigger the event cards.
+${cc("A♥")}: A totem. Saves you from a battle with an enemy card or you can use it to recover a used relic.
+${cc("A♦")}: A knapsack. Allows you to take a card from your inventory to your backpack if you have space.
+${cc("A♣")}: A fan. Blows an enemy away from the dungeon.
+
+=== Event cards ===
+Exit: Exit card. If you hit this card and it's revealed, you escape from the dungeon!
+Campfire: Campfire card. If you hit this card and it's revealed, you can choose to recover 2 relics if you have any used relics.
+During the process of the game, if you collect all 10 cards of a suit and have the relic of that suit, you will be blessed by that suit.
+Blessing of a suit means all face-up face cards of that suit in the dungeon will be face-down.
+
+=== Scoring ===
+Your score is based on the number of cards in your inventory, the number of relics you have (including used relics), and the number of complete suits you have collected.
+To pardon yourself, you need to find the exit card and escape the dungeon with 4 prestigious relics.
+Your final score will be revealed after you escape. If you lose before escaping, your score will be none.
+Good luck on your adventure!
+===================================
+
+Version: 1.5
+Credits: This game was created by fatlock1712 with a huge inspiration from the Loot the Loop game.
+It was made for a coding project and is not affiliated with the original game or its creators.`)}
+
+/* ---------- the King ---------- */
+async function king(){
+ put("After a long journey, you are granted an audience with the king upon his throne. He asked you to give all your relics; in return, your crime will be pardoned, and you will be exiled from the kingdom.");
+ let c=await ask("What is your choice here? accept/deny/coin flip?",[["a","Accept",,"a"],["d","Deny",,"d"],["c","Coin flip",,"c"]]);
+ if(c==="c"){put("You let the God of luck decide your fate by a coin flip. Is it a wise choice? Who knows...");await sleep(700);
+  const h=Math.random()<.5;put(`You tossed a coin and it's... ${h?"HEAD":"TAIL"}`);c=h?"a":"d"}
+ if(c==="a"){
+  put("After near-death experiences, you always dream for a peaceful life. Accepted the King's offer, you moved to isolated village and told tales about the dungeon you escaped from.");
+  const n=R.length+U.length;
+  if(n<4)put(`However, the hunt for the last ${4-n} ${4-n===1?"relic":"relics"} must be continued, more and more death sentence prisoners are sent to the dungeon.`);
+  put(`Your score is based on the number of cards in your inventory, the number of relics you have (including used relics), and the number of complete suits you have collected. Your final score is ${score}.`,"gold");return}
+ if(!inv.length&&!B.length){
+  put("You want to challenge the King and make him pay for what he has done to you!");
+  put("However, you don't have any cards in your inventory or backpack. The King wonders how you could escape from the dungeon with the relics.");
+  put("You fight him with your bare hands, but you were quickly defeated...","bad");return}
+ const w=await fight();
+ if(w===2)put("You defeated the KING. No numbers can describe your victory. Your final score is 999.","gold");
+ else put("Is it the karma of your crimes? Or is it just the fate of a dungeon crawler? Who knows... Your final score is none.","bad");
+}
+async function fight(){
+ put("You denied the King's offer. You decided to make him pay for what he has done to you!");
+ put("The almighty King revealed his secret powers! His sceptre and sword are actually the two missing Joker cards.");
+ put("His sceptre summoned a mirror image of you to fight against you. The mirror image has the same inventory, backpack as yours.");
+ put("His sword isn't a normal one, your feelings say, and he even joined the fight?!?");
+ put("This isn't a fair fight, but you have come this far. You have to fight for your life and the freedom you just got a taste of.");
+ put("KING and MIRROR");
+ let kh=30,mh=50,hp=50,deck=[...inv,...B],rel=[...R,...U],mirrorDeck=[...deck];
+ let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,cd=0,sp=0,allow=1,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
+ for(const r of B){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
+ hp+=bh;
+ if(B.length){const t=[[bh,"health"],[greed-10,"greed"],[spd-10,"speed"],[str-10,"strength"]].filter(x=>x[0]>0).map(x=>`+${x[0]} ${x[1]}`);
+  put(`Since you have ${ccs(B)} in your back pack, you received its blessing: ${t.join(", ")}`)}
+ const H=()=>put(`Your health is now ${Math.max(hp,0)}`);
+ const dead=()=>{if(hp>0)return false;
+  if(heart){put("Your heart relic saves you from death! You are revived with 20 HP, but the relic is now used up.","gold");hp=20;heart=0;const i=rel.indexOf("A♥");if(i>=0)rel.splice(i,1);return false}
+  return true};
+ const crit=()=>{if(Math.random()<str/100){put("It's a critical hit! Your attack deals double damage!","gold");return 2}return 1};
+ async function frel(){
+  if(!allow)return put("Relics can only be activated once per turn.");
+  const av=rel.filter(r=>!(r==="A♣"&&cd>0));
+  if(!av.length)return put("You have no relics to use.");
+  const k=await ask(`You have the following relics: ${av.map(cc).join(" / ")}. Which relic do you want to use?`,[...av.map((r,i)=>[i,cc(r)]),["x","Cancel"]]);
+  if(k==="x")return put("You decide not to use a relic.");
+  const r=av[k];
+  if(r==="A♥"){if(!heart)return put("Your totem is already used up.");const v=deck.length?parseInt(rnd(deck)):1;hp+=v;put(`You used the relic and healed yourself ${v} HP.`);allow=0}
+  else if(r==="A♦"){if(!deck.length)return put("You have no cards to duplicate.");
+   const j=await ask(`You used the relic. Which card do you want to duplicate from your inventory? ${ccs(deck)}?`,[...deck.map((c,i)=>[i,cc(c)]),["x","Cancel"]]);
+   if(j==="x")return;
+   put(`You duplicated the ${cc(deck[j])} card and added it to your deck for this fight.`);deck.push(deck[j]);allow=0}
+  else if(r==="A♠"){sp=1;allow=0;put("Your next attack will be enchanced.")}
+  else{const who=[];if(mh>0)who.push("MIRROR");if(kh>0)who.push("KING");
+   const w=await ask("Who do you want to blow away?",[...who.map(x=>[x,x]),["x","Cancel"]]);if(w==="x")return;
+   cd=2;allow=0;
+   if(w==="KING"){kb=1;put("You blew away the KING! It won't be able to attack you for the next turn.")}
+   else{mb=1;put("You blew away the MIRROR! It won't be able to attack you for the next turn.")}}
+ }
+ for(;;){
+  const k=await ask(`Turn ${tc}, what is your choice? fight/relic/check?`,[["f","Fight",,"f"],["r","Relic",,"r"],["ch","Check",,"ch"],["help","Help",,"help"]]);
+  if(k==="r"){await frel();continue}
+  if(k==="ch"){
+   put(`Your health: ${Math.max(hp,0)}`);
+   put(`Health bonus: ${bh}, Greed: ${greed}, Speed: ${spd}, Strength: ${str}`);
+   put(`KING's health: ${kh}`);put(`MIRROR's health: ${mh}`);
+   put(`Relics: ${ccs(rel)}`);put(`Deck: ${ccs(deck)}`);continue}
+  if(k==="help"){
+   put(`Greed: Chance to draw 2 cards at the start of your turn.
+Speed: Chance to dodge an attack.
+Strength: Chance to deal double damage.
+Dexterity: Increase your health.
+Relics can only be used once per turn. You can choose to use a relic or fight first during your turn.
+${cc("A♠")}: Enchances your next attack and hit both enemies.
+${cc("A♥")}: Heals yourself an ammount equal to the value of the card drawn from your deck. It also can revive you from death once.
+${cc("A♦")}: Create a duplicate of a card from your deck.
+${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can't attack the enemy that was blown away. This relic has a cooldown of 2 turns.`);continue}
+  tc++;allow=1;cd=Math.max(0,cd-1);
+  let you;
+  if(bare){you="1♣";if(!once){put("You have no cards to fight with, so you fought the battle with your bare hands. Your attack is weak as a result.");once=true}}
+  else{you=rnd(deck);put(`You draw and reveal ${cc(you)}`);await sleep(600);
+   if(Math.random()<greed/100){const n=rnd(deck);put(`Your greed gets the better of you! You draw again and reveal ${cc(n)}`);await sleep(400);
+    if(parseInt(n)>parseInt(you)){put(`You choose ${cc(n)}`);you=n}else put(`You choose ${cc(you)}`)}}
+  const y=parseInt(you);
+  if(mh>0){const m=rnd(mirrorDeck);mdr=parseInt(m);put(`MIRROR draw and reveal ${cc(m)}`);await sleep(400)}
+  if(kh>0){kdr=1+Math.floor(Math.random()*6);put(`KING roll the dice and get a ${kdr}`);await sleep(400)}
+  let lost=false;
+  if(sp===1){
+   put("You're waiting for the perfect moment to use your special attack...");await sleep(300);
+   if(kh>0){put("The KING attacks you.");hp-=kdr}
+   if(mh>0){put("The MIRROR attacks you.");hp-=mdr}
+   H();
+   if(dead()){put("You failed to catch the right moment. You have been defeated by the KING and MIRROR...","bad");lost=true}
+   else{put("Your attack hits both the KING and the MIRROR!");const b=crit();
+    if(kh>0){kh-=b*y;put(`The KING's health is now ${Math.max(kh,0)}`)}
+    if(mh>0){mh-=b*y;put(`The MIRROR's health is now ${Math.max(mh,0)}`)}
+    sp=0}
+  }else{
+   for(const [nm,hv,d,bl] of [["KING",kh,kdr,kb],["MIRROR",mh,mdr,mb]]){
+    if(lost||hv<=0||y>=d)continue;
+    if(bl>0){put(`The ${nm} is blown away and can't attack you this turn!`);continue}
+    put(`The ${nm} attacks you.`);hp-=d;await sleep(400);
+    if(Math.random()<spd/100){put(`Fortunately, you dodged the ${nm}'s attack!`);hp+=d}
+    H();
+    if(dead()){put("You have been defeated by the KING and MIRROR...","bad");lost=true}
+   }
+   if(!lost){
+    const who=[];
+    if(mh>0&&y>=mdr&&mb===0)who.push("MIRROR");
+    if(kh>0&&y>=kdr&&kb===0)who.push("KING");
+    if(who.length){
+     const w=who.length===1?who[0]:await ask(`Who do you want attack ${who.join("/")}?`,who.map(x=>[x,x]));
+     if(w==="MIRROR"){put("You attacked the MIRROR!");mh-=crit()*y;put(`The mirror image's health is now ${Math.max(mh,0)}`)}
+     else{const dmg=y-kdr;put(`You attacked the KING, but he blocked your attack. However, the KING suffered ${dmg} damage from the impact!`);kh-=dmg;put(`The KING's health is now ${Math.max(kh,0)}`);
+      if(Math.random()<.5&&!bare){await sleep(500);put("Your weapon got destroyed by the KING's sword during the fight.");
+       const i=deck.indexOf(you);if(i>=0)deck.splice(i,1);
+       if(!deck.length){bare=true;put("You have no more cards to fight with. You fought the battle with your bare hands...")}}}
+    }
+   }
+  }
+  if(lost)return 1;
+  kb=Math.max(0,kb-1);mb=Math.max(0,mb-1);
+  if(kh<=0&&mh>0&&!kd){put("Against all odds, you defeated the KING but you still have another enemy to defeat.");kd=true}
+  if(mh<=0&&kh>0&&!md){put("You defeated the MIRROR, but the KING is still standing strong.");md=true}
+  if(kh<=0&&mh<=0){
+   put("You won the fight! Using his scepter, you created a mirror image of the KING and now you controlled the whole kingdom in the darkness.","gold");
+   put("Shorty after your victory, you got pardoned by the puppet King and no ones dared to question about his decision anymore. You lived the rest of your days as a shadow ruler.","gold");
+   return 2}
+ }
+}
+
+/* ---------- main loop ---------- */
+async function game(){
+ newState();log.innerHTML="";title();
+ while(!over){
+  const canLook=T[0][1]==="H";
+  const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["ch","Check",,"ch"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
+  const verbs=[...(canLook?["Look"]:[]),"Explore","Collect","Backpack","Relic"];
+  const a=await ask(`${verbs.join(", ")} or Check?`,opts);
+  if(a==="l")look();else if(a==="e")await explore();else if(a==="c")collect();
+  else if(a==="b")await pack();else if(a==="r")await relic();
+  else if(a==="ch")check();else if(a==="help")helpText();else if(a==="exit")over=true;
+ }
+ if(esc){
+  const n=R.length+U.length;score=inv.length*(1+n)*(1+M.length);
+  put(ccs(inv));put(ccs([...R,...U]));
+  if(n===4)put("You escaped with all 4 relics! With that feat, you had a chance to be granted an audience with the King.","gold");
+  else if(n>=2)put(`You escaped with ${n} relics. With that feat, you had a chance to granted an audience with the King`,"gold");
+  if(n>=2)await king();
+  else if(n===0){put("You barely escaped and didn't want to risk your life anymore. With no relics and few cards, you had nothing to offer the Royal army when you got out.");put("You had to pay for your death sentence.","bad")}
+  else{put("You escaped with only 1 relic. You barely made it out alive and your relic was taken by the Royal army. Your death sentence was reduced into a life sentence and every treasure you found is now the King's.");
+   put("You lived the rest of your days as a prisoner, telling tales about the dungeon you escaped from.");
+   put(`Your score is based on the number of cards in your inventory, the number of relics you have (including used relics), and the number of complete suits you have collected. Your final score is ${score}.`,"gold")}
+ }else{
+  put("You got lost in the dungeon forever. The shadows eat you alive and drive you into madness. You will never escape...","bad");
+  put("Is this the karma of your crimes? Or is it just the fate of a dungeon crawler? Who knows...");
+ }
+}
+(async()=>{for(;;){await game();
+ for(;;){const a=await ask("Do you want to play again?",[["y","Yes",,"y"],["n","No",,"n"]]);
+  if(a==="y")break;put("Thanks for playing! Type y or tap Yes to start a new run.")}}})();
+</script>
+</body>
+</html>
