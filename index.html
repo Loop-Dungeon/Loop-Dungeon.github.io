@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loop Dungeon</title>
+<meta property="og:description" content="A text-based dungeon crawler card game: jump through a looping deck, dodge the statues, and find the exit.">
 <link rel="icon" type="image/x-icon" href="loopdungeon.ico">
 <link rel="shortcut icon" href="loopdungeon.ico">
 <style>
@@ -59,6 +60,8 @@ button{font:inherit;color:#ddd;background:none;border:1px solid #3a3a3a;padding:
 button:hover{background:#1c1c1c;border-color:#666}
 button:focus-visible{outline:2px solid #f9f1a5;outline-offset:2px}
 button.quiet{color:#767676}
+#tools{margin-top:8px;display:flex;justify-content:flex-start}
+#spd{font-size:13px;padding:2px 8px;color:#9a9a9a}
 .k{color:#767676;margin-right:1ch}
 @media(pointer:coarse){#in{font-size:16px}}
 
@@ -85,13 +88,19 @@ pre.map::-webkit-scrollbar-thumb{background:#3f8f3a;border-radius:5px}
  <div id="bar">
   <form id="f" autocomplete="off"><div id="pl" hidden><span id="pq"></span><input id="in" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command"></div></form>
   <div id="btns"></div>
+  <div id="tools"><button id="spd" type="button" class="quiet" title="Change how fast text appears">» Text speed: Normal</button></div>
  </div>
  </div>
 </div>
 <script>
 const SU=["♠","♥","♦","♣"],RK=[2,3,4,5,6,7,8,9,10,"J","Q","K","A"];
 const CL={"♠":"sp","♥":"he","♦":"di","♣":"cl"},NM={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
-const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms)),rnd=a=>a[Math.floor(Math.random()*a.length)];
+/* text speed: m scales every delay (0 = instant) */
+const SPEEDS=[{n:"Normal",m:1},{n:"Fast",m:.35},{n:"Instant",m:0}];
+let si=0,wake=null;
+const wait=ms=>new Promise(r=>{wake=r;setTimeout(r,ms)});
+const sleep=ms=>{const d=ms*SPEEDS[si].m;return d>0?wait(d):Promise.resolve()};
+const $=id=>document.getElementById(id),rnd=a=>a[Math.floor(Math.random()*a.length)];
 const esc_=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const cc=c=>c==="Exit"||c==="Campfire"?`<b class="ev">${c}</b>`:`<b class="${CL[c.slice(-1)]}">${c}</b>`;
 const ccs=a=>"["+a.map(cc).join(", ")+"]";
@@ -101,7 +110,44 @@ const log=$("log");
 let T,inv,B,R,U,M,over,esc,score=0,cur=null,statsFn=()=>{};
 
 /* ---------- terminal output ---------- */
-function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;log.appendChild(d);log.scrollTop=1e9}
+const Q=[],idle=[];let busy=false;
+/* reveal a line word by word (keeps the coloured card spans intact) */
+const WORD_MS=45,LINE_GAP_MS=140;
+async function typeNode(n){
+ const tw=document.createTreeWalker(n,NodeFilter.SHOW_TEXT),ts=[];
+ while(tw.nextNode())ts.push(tw.currentNode);
+ const full=ts.map(t=>t.data);ts.forEach(t=>t.data="");
+ log.appendChild(n);
+ for(let i=0;i<ts.length;i++){
+  let acc="";
+  for(const w of full[i].match(/\s*\S+\s*|\s+/g)||[]){
+   if(SPEEDS[si].m===0){ts[i].data=full[i];break}
+   acc+=w;ts[i].data=acc;log.scrollTop=1e9;await wait(WORD_MS*SPEEDS[si].m)}
+  ts[i].data=full[i]}
+ log.scrollTop=1e9}
+/* the map waits a beat after the text, then draws row by row */
+const MAP_PAUSE_MS=500,ROW_MS=70;
+async function revealMap(n){
+ const rows=n.innerHTML.split("\n");
+ if(SPEEDS[si].m>0)await wait(MAP_PAUSE_MS*SPEEDS[si].m);
+ n.innerHTML="";log.appendChild(n);
+ for(let i=0;i<rows.length;i++){
+  n.innerHTML=rows.slice(0,i+1).join("\n");log.scrollTop=1e9;
+  if(SPEEDS[si].m===0){n.innerHTML=rows.join("\n");break}
+  await wait(ROW_MS*SPEEDS[si].m)}
+ log.scrollTop=1e9}
+async function pump(){busy=true;
+ while(Q.length){const n=Q.shift();
+  if(n.classList.contains("m"))await typeNode(n);
+  else if(n.classList.contains("map"))await revealMap(n);
+  else{log.appendChild(n);log.scrollTop=1e9}
+  const d=LINE_GAP_MS*SPEEDS[si].m;if(d>0&&Q.length)await wait(d)}
+ busy=false;idle.splice(0).forEach(r=>r())}
+const enq=n=>{Q.push(n);if(!busy)pump()};
+const drained=()=>busy||Q.length?new Promise(r=>idle.push(r)):Promise.resolve();
+function put(h,c=""){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;enq(d)}
+$("spd").onclick=e=>{si=(si+1)%SPEEDS.length;e.currentTarget.textContent="» Text speed: "+SPEEDS[si].n;
+ if(wake)wake();e.currentTarget.blur();if(cur&&matchMedia("(pointer:fine)").matches)$("in").focus()};
 const TITLE=[
 [" █████                                     "," ██████████                                                             ",""],
 ["▒▒███                                ","      ▒▒███▒▒▒▒███                                                              ",""],
@@ -116,7 +162,7 @@ const TITLE=[
 ["                              ▒▒▒▒▒                      ","                      ▒▒▒▒▒▒        ","   (ver 1.6)"]
 ];
 function title(){const p=document.createElement("pre");p.className="title";p.setAttribute("aria-label","Loop Dungeon");
- p.innerHTML=TITLE.map(l=>`${l[0]}<span class="red">${l[1]}</span>${l[2]}`).join("\n");log.appendChild(p)}
+ p.innerHTML=TITLE.map(l=>`${l[0]}<span class="red">${l[1]}</span>${l[2]}`).join("\n");enq(p)}
 const ctr=(t,W)=>{const p=W-t.length;if(p<=0)return t;const l=p>>1;return " ".repeat(l)+t+" ".repeat(p-l)};
 function printMap(){
  const nw=log.clientWidth<900,W=nw?4:8,sep=nw?"|":" | ",pre=nw?"|":"| ",post=nw?"|":" |";
@@ -126,14 +172,15 @@ function printMap(){
   else{t=c[0];k=CL[c[0].slice(-1)]}
   return `<span class="${k}">${ctr(t,W)}</span>`});
  let h="";for(let i=0;i<cells.length;i+=10)h+=pre+cells.slice(i,i+10).join(sep)+post+"\n";
- const p=document.createElement("pre");p.className="map";p.innerHTML=h.trimEnd();log.appendChild(p);log.scrollTop=1e9}
+ const p=document.createElement("pre");p.className="map";p.innerHTML=h.trimEnd();enq(p)}
 function show(){
  if(B.length)put(`You have the following cards in your backpack: ${ccs(B)}`);
  if(R.length)put(`You have the following relics: ${ccs(R)}`);
  printMap()}
 
 /* ---------- terminal input ---------- */
-function ask(q,opts){
+async function ask(q,opts){
+ await drained();
  statsFn();
  let n=0;
  const os=opts.map(o=>({key:o[0],label:o[1],cls:o[2],code:o[3]!==undefined?String(o[3]):(o[0]==="x"?"0":String(++n))}));
@@ -441,7 +488,7 @@ ${cc("A♣")}: Blows an enemy away from the fight for a short time. But you can'
 
 /* ---------- main loop ---------- */
 async function game(){
- newState();statsFn=mainStats;log.innerHTML="";title();
+ newState();statsFn=mainStats;Q.length=0;log.innerHTML="";title();
  while(!over){
   const canLook=T[0][1]==="H";
   const opts=[...(canLook?[["l","Look",,"l"]]:[]),["e","Explore",,"e"],["c","Collect",,"c"],["b","Backpack",,"b"],["r","Relic",,"r"],["help","Help",,"help"],["exit","Give up","quiet","exit"]];
