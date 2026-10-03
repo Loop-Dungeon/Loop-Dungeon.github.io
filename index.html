@@ -225,6 +225,8 @@ $("f").onsubmit=e=>{e.preventDefault();const v=$("in").value.trim().toLowerCase(
 document.addEventListener("keydown",e=>{if(cur&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1&&document.activeElement!==$("in")&&document.activeElement.tagName!=="BUTTON")$("in").focus()});
 
 /* ---------- sidebar ---------- */
+const RN={"♠":["Spear","Collect the next N cards (N = number on top card)"],"♥":["Totem","Blocks one statue, or recovers a used relic"],"♦":["Knapsack","Move a card from inventory to backpack"],"♣":["Fan","Blows the statue at the front away"]};
+const relLabel=r=>`${cc(r)} <span title="${RN[r.slice(-1)][1]}">${RN[r.slice(-1)][0]}</span>`;
 const row=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
 const sh=t=>`<div class="sh">${t}</div>`;
 const meter=(n,t=10)=>{n=Math.max(0,Math.min(t,n));return "█".repeat(n)+"░".repeat(t-n)};
@@ -237,7 +239,7 @@ function mainStats(){
  const cnt=s=>inv.filter(x=>x.endsWith(s)).length+(R.includes("A"+s)||U.includes("A"+s)?1:0);
  let h=sh("Haul")+row("Cards",inv.length)+row("Relics",`${n}/4`)+row("Blessed suits",M.length?M.map(cc).join(" "):dimTxt("none"));
  h+=sh("Suits")+SU.map(s=>barRow(cc(s),CL[s],cnt(s),`${cnt(s)}/10${M.includes(s)?" ★":""}`)).join("");
- h+=sh("Relics")+SU.map(s=>{const r="A"+s;return row(cc(r),R.includes(r)?"ready":dimTxt(U.includes(r)?"used":"not found"))}).join("");
+ h+=sh("Relics")+SU.map(s=>{const r="A"+s;return row(relLabel(r),R.includes(r)?"ready":dimTxt(U.includes(r)?"used":"not found"))}).join("");
  h+=sh("Backpack")+row("Holding",`${B.length}/3`)+(B.length?`<div class="chips">${B.map(cc).join(" ")}</div>`:"");
  h+=sh("Dungeon")+row("Cards left",T.length)+row("Face-down",hid.length)+row("Face-down statues",hf)+row("Next is a statue",hid.length?(hf/hid.length*100).toFixed(1)+"%":"0%");
  draw(`Stats · ${inv.length} cards · ${n}/4 relics`,h)}
@@ -413,7 +415,7 @@ async function fight(){
   let h=sh("The fight")+row("Turn",tc)+barRow("You","he",Math.ceil(L/hpMax*10),L)+barRow("King","gold",Math.ceil(K/30*10),K)+barRow("Mirror","di",Math.ceil(Mi/50*10),Mi);
   h+=sh("Blessings")+row("Bonus health",`+${bh}`)+row("Greed",greed+"%")+row("Speed",spd+"%")+row("Strength",str+"%");
   h+=sh("Status")+row("Special attack",sp?"charged":dimTxt("no"))+row("King",kb>0?"blown away":kh<=0?dimTxt("defeated"):"fighting")+row("Mirror",mb>0?"blown away":mh<=0?dimTxt("defeated"):"fighting")+row("Totem revive",heart?"ready":dimTxt("used"));
-  h+=sh("Relics")+(rel.length?rel.map(r=>row(cc(r),r==="A♣"&&cd>0?`cooldown ${cd}`:"ready")).join(""):dimTxt("none"));
+  h+=sh("Relics")+(rel.length?rel.map(r=>row(relLabel(r),r==="A♣"&&cd>0?`cooldown ${cd}`:"ready")).join(""):dimTxt("none"));
   h+=sh("Deck")+row("Cards",bare?"bare hands":deck.length)+(deck.length?`<div class="chips">${deck.map(cc).join(" ")}</div>`:"");
   draw(`Fight · You ${L} · King ${K} · Mirror ${Mi}`,h)};
  if(B.length){const t=[[bh,"health"],[greed-10,"greed"],[spd-10,"speed"],[str-10,"strength"]].filter(x=>x[0]>0).map(x=>`+${x[0]} ${x[1]}`);
