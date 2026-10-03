@@ -374,7 +374,9 @@ function stuck(){
 function look(){
  const a=[T[0]];if(T[1]&&T[1][1]==="H")a.push(T[1]);
  a.forEach(c=>c[1]="V");
- if(a.some(c=>c[0][0]==="A"))sfx("twinkle");put(`You look at the dungeon and see: ${a.map(c=>cc(c[0])).join(" and ")}`);show()}
+ if(a.some(c=>c[0][0]==="A"))sfx("twinkle");
+ if(a.some(c=>c[0]==="Exit"))door();
+ if(a.some(c=>c[0]==="Campfire"))sfx("fire");put(`You look at the dungeon and see: ${a.map(c=>cc(c[0])).join(" and ")}`);show()}
 async function explore(){
  const av=[0,1].filter(i=>isNum(T[i]));
  if(!av.length){put("No moves available. You can't explore because neither of the first two cards are numbers.");
