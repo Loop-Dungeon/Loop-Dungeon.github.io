@@ -298,7 +298,6 @@ async function land(c){
  else if(c[1]!=="H"&&c[0][0]==="A"){put(`You found a relic (${cc(c[0])})!`);R.push(c[0]);T.shift()}
  else if(c[1]!=="H"&&c[0]==="Exit"){esc=over=true;put("You found an exit!","gold")}
  else if(c[1]!=="H"&&c[0]==="Campfire")await campfire();
- else put("You land on a face-down card. Nothing happens.");
 }
 
 /* ---------- dead end: no action can change anything (ends the run automatically) ---------- */
