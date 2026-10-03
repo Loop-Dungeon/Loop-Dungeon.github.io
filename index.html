@@ -230,9 +230,11 @@ setInterval(()=>{if(OPT.tm)$("tm").textContent="⏱ "+fmt((tE||performance.now()
 let allRel=false;
 function got(){if(!allRel&&R.length+U.length===4){allRel=true;sfx("achieve")}else sfx("lucky")}
 let AC=null;
-const SFX={select:[[660,.05]],wind:[[-1,.6,0,3]],pierce:[[2000,.02],[1600,.02],[1200,.02],[800,.02],[0,.05,0,2],[130,.1,"triangle",3]],clink:[[2400,.03,"triangle"],[0,.02],[1800,.03,"triangle"],[3000,.025,"triangle"],[0,.03],[2200,.04,"triangle"]],sacred:[[784,.1,"triangle",2],[1047,.1,"triangle",2],[1568,.35,"triangle",2]],rage:[[0,.15,0,3],[200,.1,"sawtooth",2],[280,.1,"sawtooth",2],[400,.1,"sawtooth",2],[560,.12,"sawtooth",2],[0,.1,0,3],[150,.5,"square",2.5]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.03,0,2],[0,.02],[220,.02],[0,.05,0,1.5],[0,.02],[330,.03],[0,.03],[0,.06,0,2],[180,.04],[0,.03],[0,.04]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
-const DOOR=new Audio("door-slam.mp3");
-function door(){if(!OPT.snd)return;try{DOOR.volume=Math.min(1,OPT.vol*1.5);DOOR.currentTime=0;DOOR.play().catch(()=>{})}catch(e){}}
+const SFX={select:[[660,.05]],slam:[[0,.08,0,3],[90,.15,"sawtooth",3],[60,.3,"triangle",3]],wind:[[-1,.6,0,3]],pierce:[[2000,.02],[1600,.02],[1200,.02],[800,.02],[0,.05,0,2],[130,.1,"triangle",3]],clink:[[2400,.03,"triangle"],[0,.02],[1800,.03,"triangle"],[3000,.025,"triangle"],[0,.03],[2200,.04,"triangle"]],sacred:[[784,.1,"triangle",2],[1047,.1,"triangle",2],[1568,.35,"triangle",2]],rage:[[0,.15,0,3],[200,.1,"sawtooth",2],[280,.1,"sawtooth",2],[400,.1,"sawtooth",2],[560,.12,"sawtooth",2],[0,.1,0,3],[150,.5,"square",2.5]],achieve:[[523,.09],[659,.09],[784,.09],[1047,.12],[988,.07],[1047,.07],[1319,.12],[1568,.4,"triangle"]],lucky:[[1047,.05],[1319,.05],[1568,.05],[2093,.05],[1568,.04],[2093,.04],[2637,.22,"triangle"]],twinkle:[[1568,.05],[2093,.05],[2637,.14,"triangle"]],coin:[[988,.06],[1319,.16]],jump:[[300,.05],[500,.05],[700,.07]],relic:[[523,.08],[659,.08],[784,.08],[1047,.2]],hurt:[[0,.1],[110,.2,"sawtooth"]],hit:[[0,.06],[220,.1]],crit:[[880,.05],[1320,.05],[1760,.12]],bless:[[784,.08],[988,.08],[1175,.08],[1568,.25]],win:[[523,.1],[659,.1],[784,.1],[1047,.14],[784,.08],[1047,.3]],lose:[[392,.18],[330,.18],[262,.18],[196,.5,"triangle"]],fire:[[0,.03,0,2],[0,.02],[220,.02],[0,.05,0,1.5],[0,.02],[330,.03],[0,.03],[0,.06,0,2],[180,.04],[0,.03],[0,.04]],power:[[392,.07],[587,.07],[784,.12]],bad:[[196,.12],[147,.2]]};
+const DOOR=new Audio();DOOR.preload="auto";DOOR.src="door-slam.mp3";let doorOk=true;DOOR.onerror=()=>{doorOk=false};
+function door(){if(!OPT.snd)return;
+ if(!doorOk){sfx("slam");return}
+ try{DOOR.volume=Math.min(1,OPT.vol*1.5);DOOR.currentTime=0;const p=DOOR.play();if(p&&p.catch)p.catch(()=>sfx("slam"))}catch(e){sfx("slam")}}
 const RS={"A♥":"sacred","A♠":"pierce","A♦":"clink","A♣":"wind"};
 function sfx(n){if(!OPT.snd||!SFX[n])return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();let t=AC.currentTime;
  for(const[f,d,w,gm]of SFX[n]){const g=AC.createGain();g.gain.setValueAtTime(OPT.vol*.25*(gm||1),t);g.gain.exponentialRampToValueAtTime(.0001,t+d);let o;
@@ -294,7 +296,7 @@ $("f").onsubmit=e=>{e.preventDefault();const v=$("in").value.trim().toLowerCase(
 document.addEventListener("keydown",e=>{if(cur&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1&&document.activeElement!==$("in")&&!["BUTTON","INPUT","SELECT"].includes(document.activeElement.tagName))$("in").focus()});
 
 /* ---------- sidebar ---------- */
-const RN={"♠":["Spear","Collect the next N cards (N = number on top card)"],"♥":["Sacred Heart","Blocks one statue, or recovers a used relic"],"♦":["Mammon's Purse","Move a card from inventory to backpack"],"♣":["Fan","Blows the statue at the front away"]};
+const RN={"♠":["Holy Lance","Collect the next N cards (N = number on top card)"],"♥":["Sacred Heart","Blocks one statue, or recovers a used relic"],"♦":["Mammon's Purse","Move a card from inventory to backpack"],"♣":["Banana Leaf Fan","Blows the statue at the front away"]};
 const relLabel=r=>`${cc(r)} <span title="${RN[r.slice(-1)][1]}">${RN[r.slice(-1)][0]}</span>`;
 const row=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
 const sh=t=>`<div class="sh">${t}</div>`;
@@ -415,7 +417,7 @@ async function relic(){
   if(j==="x")return put("You decide not to recover a relic.");
   const g=U.splice(j,1)[0];spend();R.push(g);put(`You recovered the ${cc(g)} relic.`);
  }else if(r==="A♠"){
-  if(!isNum(T[0]))return put("The spear needs a face-up number card on top of the dungeon.");
+  if(!isNum(T[0]))return put("The Holy Lance needs a face-up number card on top of the dungeon.");
   spend();const n=num(T[0]);
   put(`You used the ${cc(r)} relic. You can collect the ${n} next face-up number cards and relics in the dungeon.`);
   for(let i=n;i>=1;i--){const c=T[i-1];if(!c||c[1]==="H")continue;
@@ -450,10 +452,10 @@ Type a command and press Enter, or tap a button.
 Your inventory, relics, suit progress and dungeon odds are always shown on the scroll beside the game (tap "Stats" on small screens).
 
 === Relic Effects ===
-${cc("A♠")}: A spear. Based on the number on the top card, you can collect the corresponding number of face-up number cards and relics. It can't trigger Exit or Campfire cards.
+${cc("A♠")}: Holy Lance, a spear. Based on the number on the top card, you can collect the corresponding number of face-up number cards and relics. It can't trigger Exit or Campfire cards.
 ${cc("A♥")}: A sacred heart. Saves you from a battle with an enemy card or you can use it to recover a used relic.
 ${cc("A♦")}: Mammon's Purse, a purse of greed. Allows you to take a card from your inventory to your backpack if you have space.
-${cc("A♣")}: A fan. Blows an enemy away from the dungeon.
+${cc("A♣")}: Banana Leaf Fan, a fan. Blows an enemy away from the dungeon.
 
 === Event cards ===
 Exit: Exit card. If you hit this card and it's revealed, you escape from the dungeon!
@@ -559,7 +561,7 @@ Strength: Chance to deal double damage.
 Dexterity: Increase your health.
 You can use several relics in one turn, but each relic has its own cooldown once used (♠ 2 turns, ♥ 3 turns, ♦ 2 turns, ♣ 2 turns).
 Bet: pick higher (>6) or lower (<6) before drawing. If your card matches, your damage is doubled this turn. If not (a 6 always loses), the card breaks and your attack deals no damage.
-Phase 2: when the KING falls below 20 HP he rolls a d20 instead of a d6.\nGuard: each turn the KING has a 10% chance to call a GUARD (10 HP, hits you for 3 every turn). Guards can pile up with no limit. You attack one guard at a time, and the ♣ Fan blows all of them away.
+Phase 2: when the KING falls below 20 HP he rolls a d20 instead of a d6.\nGuard: each turn the KING has a 10% chance to call a GUARD (10 HP, hits you for 3 every turn). Guards can pile up with no limit. You attack one guard at a time, and the ♣ Banana Leaf Fan blows all of them away.
 Health, enemy health, blessings, relics and your deck are shown on the scroll beside the game.
 ${cc("A♠")}: Enhances your next attack and hits both enemies (cooldown 2 turns).
 ${cc("A♥")}: Heals yourself an amount equal to the value of a random card from your deck (cooldown 3 turns). It also can revive you from death once.
