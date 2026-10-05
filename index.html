@@ -157,7 +157,7 @@ const ccs=a=>"["+a.map(cc).join(", ")+"]";
 const isFace=n=>/^[JQK]/.test(n),isNum=c=>!!c&&c[1]!=="H"&&/^\d+$/.test(c[0].slice(0,-1)),num=c=>parseInt(c[0]);
 const trap=c=>!!c&&c[1]!=="H"&&isFace(c[0]);
 const log=$("log");
-let T,inv,B,R,U,M,over,esc,score=0,cur=null,statsFn=()=>{};
+let FB=[],T,inv,B,R,U,M,over,esc,score=0,cur=null,statsFn=()=>{};
 
 /* ---------- terminal output ---------- */
 const Q=[],idle=[];let busy=false;
@@ -325,7 +325,7 @@ $("side").open=false;
 
 /* ---------- game state ---------- */
 function newState(){
- allRel=false;curSeed=seedIn||Math.random().toString(36).slice(2,8);rng=mb32(hs(curSeed));$("o_cur").textContent="Current run seed: "+curSeed;
+ allRel=false;FB=[];curSeed=seedIn||Math.random().toString(36).slice(2,8);rng=mb32(hs(curSeed));$("o_cur").textContent="Current run seed: "+curSeed;
  const D=["Exit","Campfire",...SU.flatMap(s=>RK.map(r=>""+r+s))];
  for(let i=D.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[D[i],D[j]]=[D[j],D[i]]}
  T=D.map(c=>[c,"H"]);inv=[];B=[];R=[];U=[];M=[];over=esc=false;
@@ -519,7 +519,10 @@ async function fight(){
  put("👑 KING and 🔮 MIRROR");
  let kh=40,mh=50,hp=50,deck=[...inv,...B],rel=[...R,...U],mirrorDeck=[...deck];
  let tc=0,greed=10,bh=0,spd=10,str=10,heart=rel.includes("A♥")?1:0,bare=false,once=false,sp=0,ph2=false,gs=[],mb2=0,kc=0,kcd=2,kd=false,md=false,kb=0,mb=0,kdr=0,mdr=0;
- for(const r of B){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
+ for(const r of FB){const v=parseInt(r),s=r.slice(-1);if(s==="♠")str+=2*v;else if(s==="♥")bh+=2*v;else if(s==="♦")greed+=2*v;else spd+=2*v}
+ /* blessed suits: +10 to that suit's stat (inventory itself gives no boost) */
+ if(M.includes("♠"))str+=10;if(M.includes("♥"))bh+=10;if(M.includes("♦"))greed+=10;if(M.includes("♣"))spd+=10;
+ greed=Math.min(greed,75);spd=Math.min(spd,75);str=Math.min(str,75);
  hp+=bh;
  const hpMax=50+bh;
  const EM={KING:"👑",MIRROR:"🔮",GUARD:"🛡️"};
@@ -534,8 +537,8 @@ async function fight(){
   h+=sh("Relics")+(rel.length?rel.map(r=>row(relLabel(r),cd[r]>0?`cooldown ${cd[r]}`:"ready")).join(""):dimTxt("none"));
   h+=sh("Deck")+row("Cards",bare?"bare hands":deck.length)+(deck.length?`<div class="chips">${deck.map(cc).join(" ")}</div>`:"");
   draw(`Fight · You ${L} · King ${K} · Mirror ${Mi}`,h)};
- if(B.length){const t=[[bh,"health"],[greed-10,"greed"],[spd-10,"speed"],[str-10,"strength"]].filter(x=>x[0]>0).map(x=>`+${x[0]} ${x[1]}`);
-  put(`Since you have ${ccs(B)} in your back pack, you received its blessing: ${t.join(", ")}`)}
+ {const t=[[bh,"health"],[greed-10,"greed"],[spd-10,"speed"],[str-10,"strength"]].filter(x=>x[0]>0).map(x=>`+${x[0]} ${x[1]}`);
+  if(t.length)put(`You received blessings: ${t.join(", ")}${FB.length?` (from the ${ccs(FB)} in your backpack)`:""}${M.length?`${FB.length?" and":" (from"} the blessed suits ${M.map(cc).join(" ")}${FB.length?"":")"}`:""}`)}
  const H=()=>{put(`Your health is now ${Math.max(hp,0)}`);statsFn()};
  const dead=()=>{if(hp>0)return false;
   if(heart){put("Your heart relic saves you from death! You are revived with 20 HP, but the relic is now used up.","gold");hp=20;heart=0;const i=rel.indexOf("A♥");if(i>=0)rel.splice(i,1);return false}
@@ -680,6 +683,9 @@ async function game0(){
   else if(a==="help")helpText();else if(a==="exit")over=true;
  }
  if(esc){
+  FB=[...B];inv.push(...B);B=[];
+  if(FB.length){const m0=M.length;put(`You put the ${ccs(FB)} from your backpack back into your inventory.`);bless();
+   if(M.length>m0)put(`Your backpack cards completed ${M.length-m0>1?M.length-m0+" suits":"a suit"}! Each blessed suit adds +10 to its stat in the final fight.`,"gold")}
   const n=R.length+U.length;score=inv.length*(1+n)*(1+M.length);
   setTimeout(()=>sfx("win"),1500);put(ccs(inv));put(ccs([...R,...U]));
   if(n===4)put("You escaped with all 4 relics! With that feat, you had a chance to be granted an audience with the King.","gold");
