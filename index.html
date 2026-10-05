@@ -472,6 +472,7 @@ Blessing of a suit means all face-up face cards of that suit in the dungeon will
 
 === Scoring ===
 Your score is based on the number of cards in your inventory, the number of relics you have (including used relics), and the number of complete suits you have collected.
+Defeating the King in the final fight adds 125 bonus points to your score.
 To pardon yourself, you need to find the exit card and escape the dungeon with 4 prestigious relics.
 Your final score will be revealed after you escape. If you lose before escaping, your score will be none.
 Good luck on your adventure!
@@ -484,7 +485,7 @@ It was made for a coding project and is not affiliated with the original game or
 /* ---------- final score as suit-symbol ASCII art, centred ---------- */
 function showScore(n){
  const D={0:"111101101101111",1:"010110010010111",2:"111001111100111",3:"111001111001111",4:"101101111001001",5:"111100111001111",6:"111100111101111",7:"111001001001001",8:"111101111101111",9:"111101111001111"};
- const ss=SU.filter(x=>R.includes("A"+x)||U.includes("A"+x)),ds=String(n).split(""),w=ds.length*8-2,W=Math.max(w,19),cen=(len)=>" ".repeat(Math.floor((W-len)/2));
+ const ss=SU.filter(x=>R.includes("A"+x)||U.includes("A"+x)),ds=String(n===1000?"000":n).split(""),w=ds.length*8-2,W=Math.max(w,19),cen=(len)=>" ".repeat(Math.floor((W-len)/2));
  const rows=[cen(15)+'<span class="gold">★ FINAL SCORE ★</span>',""];
  for(let y=0;y<5;y++){let r=cen(w);ds.forEach((d,i)=>{for(let x=0;x<3;x++){const sv=ss[(x+y+i)%ss.length];r+=D[d][y*3+x]==="1"?`<span class="${CL[sv]}">${sv}</span> `:"  "}r+="  "});rows.push(r.trimEnd())}
  rows.push("",cen(ss.length*2-1)+ss.map(cc).join(" "));
@@ -506,7 +507,7 @@ async function king(){
   put("However, you don't have any cards in your inventory or backpack. The King wonders how you could escape from the dungeon with the relics.");
   put("You fight him with your bare hands, but you were quickly defeated...","bad");return}
  const w=await fight();statsFn=mainStats;statsFn();
- sfx(w===2?"win":"lose");if(w===2){put("You defeated the KING. No numbers can describe your victory. Your final score is 999.","gold");showScore(999)}
+ sfx(w===2?"win":"lose");if(w===2){score+=125;put(`You defeated the KING. No numbers can describe your victory. Winning the fight adds 125 points. Your final score is ${score===1000?"000":score}.`,"gold");showScore(score)}
  else put("Is it the karma of your crimes? Or is it just the fate of a dungeon crawler? Who knows... Your final score is none.","bad");
 }
 async function fight(){
